@@ -721,11 +721,34 @@ the wrong commit leaves two heads, and `upgrade head` then refuses to run at all
 # http://127.0.0.1:3100/docs OpenAPI UI
 ```
 
-The console at `/` is one static page served by the app itself: it drives the
-same `/api/insurance` routes a caller would, with a claim detail view, the
-rule-by-rule decision, semantic calculations, graph evidence, simulated
-payments, the audit chain, both catalogs and a scenario runner. No build step
-and no Node dependency, so it works wherever the standalone API does.
+The console at `/` is one static page served by the app itself, laid out like
+the NVIDIA Auto-Ontology UI: an icon rail (Chat, Discovery, Terms, Analysis,
+Exploration, Data, Analytics, Settings), a catalog panel and breadcrumbs. It
+drives the same `/api/insurance` routes a caller would.
+
+- **Chat** asks the database, ontology and semantic layer a question and shows
+the answer, the rows and the SQL used.
+- **Data** lists all 23 tables by layer, then columns, foreign keys, row counts
+and sample rows.
+- **Terms** browses the 14 certified semantic definitions (formula, unit,
+owner, version, dependencies) and the 31 ontology classes with constraints.
+- **Analysis** runs the decision engine, lists all 15 rules, pays (simulated),
+verifies and shows the audit chain.
+- **Exploration** runs read-only SQL; **Analytics** and **Discovery** summarise
+claims, decisions, payments, rules and causes.
+
+The catalog endpoints behind those pages are also public API:
+
+| Method | Path | Returns |
+| --- | --- | --- |
+| GET | `/api/insurance/data` | Tables grouped by layer, with row counts |
+| GET | `/api/insurance/data/{table}` | Columns, keys, relationships, sample rows |
+| POST | `/api/insurance/sql` | Read-only `SELECT` result (DDL/DML refused) |
+| POST | `/api/insurance/ask` | Deterministic answer, table and SQL for a question |
+| GET | `/api/insurance/analytics` | Claim, decision, payment, rule and audit counts |
+
+No build step and no Node dependency, so the console works wherever the
+standalone API does.
 
 Seeding happens on startup (`INSURANCE_SEED_ON_START=1`). Create tables without
 seeding via `INSURANCE_SEED_ON_START=0`; bootstrap a database explicitly with:

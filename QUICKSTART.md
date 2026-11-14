@@ -65,12 +65,21 @@ response shapes.
 .venv/Scripts/python -m auto_ontology.insurance.api
 ```
 
-Then open **http://127.0.0.1:3100/** for the claims console: claim and policy
-records, the decision engine's 15 rules and 9 constraints, semantic
-calculations, the knowledge graph, simulated payments with idempotency and
-verification, the audit hash chain, the ontology and semantic catalogs, and a
-one-click scenario runner. Raw JSON is available under each panel, and the
-OpenAPI UI is at **http://127.0.0.1:3100/docs**.
+Then open **http://127.0.0.1:3100/** for the claims console, which follows the
+NVIDIA Auto-Ontology layout: Chat, Discovery, Terms, Analysis, Exploration,
+Data, Analytics and Settings in the left rail.
+
+- **Chat** answers questions like *Why was CLM-2001 approved?* or *What is
+  net_death_benefit for POL-1001?* with the rows, the SQL used and the
+  definition behind the number.
+- **Data** browses all 23 tables by layer: columns, keys, relationships, row
+  counts and sample rows.
+- **Terms** shows the 31 ontology classes and 14 certified semantic
+  definitions, including formulas and dependencies.
+- **Analysis** runs the 15-rule decision engine, pays (simulated), verifies and
+  renders the audit hash chain; **Exploration** runs read-only SQL.
+
+The OpenAPI UI is at **http://127.0.0.1:3100/docs**.
 
 PowerShell:
 

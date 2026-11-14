@@ -8,196 +8,246 @@ SPDX-License-Identifier: Apache-2.0
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Life Insurance Claims Decision AI</title>
+<title>Decision Ontology · Claims Console</title>
 <style>
   :root {
-    color-scheme: dark;
-    --bg: #0a0e14;
-    --panel: #121923;
-    --panel-2: #0e141c;
-    --line: #1f2b3a;
-    --text: #e6edf3;
-    --muted: #8b98a9;
-    --accent: #2dd4bf;
-    --blue: #60a5fa;
-    --ok: #34d399;
-    --warn: #fbbf24;
-    --bad: #f87171;
+    --bg: #ffffff;
+    --canvas: #f7f8fa;
+    --line: #e5e7eb;
+    --line-strong: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --faint: #9ca3af;
+    --green: #16a34a;
+    --green-soft: #ecfdf3;
+    --green-line: #bbf7d0;
+    --blue: #2563eb;
+    --amber: #b45309;
+    --amber-soft: #fffbeb;
+    --red: #b91c1c;
+    --red-soft: #fef2f2;
     --radius: 10px;
+    --rail: 76px;
+    --panel: 264px;
   }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
+    margin: 0; color: var(--text); background: var(--bg);
     font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
-  header {
-    position: sticky; top: 0; z-index: 10;
-    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-    padding: 14px 24px; background: rgba(10, 14, 20, .92);
-    border-bottom: 1px solid var(--line); backdrop-filter: blur(8px);
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .app { display: grid; grid-template-columns: var(--rail) 1fr; height: 100vh; overflow: hidden; }
+
+  /* ---- icon rail ---- */
+  .rail { border-right: 1px solid var(--line); background: var(--bg); padding: 10px 6px; overflow-y: auto; }
+  .rail .brand {
+    width: 40px; height: 40px; margin: 2px auto 14px; border-radius: 10px; display: grid;
+    place-items: center; background: #0f172a; color: #4ade80; font-weight: 700; font-size: 13px;
   }
-  .brand { display: flex; align-items: center; gap: 12px; margin-right: auto; }
-  .logo {
-    width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
-    background: linear-gradient(135deg, #134e4a, #1e3a8a); color: var(--accent);
-    font-weight: 700; font-size: 15px; border: 1px solid #21465a;
+  .rail button {
+    width: 100%; border: 0; background: transparent; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 2px; border-radius: 8px; font-size: 10.5px; line-height: 1.2;
   }
-  h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
-  .sub { font-size: 12px; color: var(--muted); }
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-    border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--muted);
-    background: var(--panel-2);
+  .rail button svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  .rail button:hover { background: #f3f4f6; color: #374151; }
+  .rail button.active { background: var(--green-soft); color: #15803d; font-weight: 600; }
+
+  .workspace { display: grid; grid-template-columns: 1fr; overflow: hidden; }
+  .workspace.with-panel { grid-template-columns: var(--panel) 1fr; }
+
+  /* ---- secondary panel ---- */
+  .panel { border-right: 1px solid var(--line); overflow-y: auto; padding: 14px 10px 30px; background: var(--bg); }
+  .panel h4 {
+    margin: 16px 8px 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--faint); font-weight: 600;
   }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
-  .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(52, 211, 153, .6); }
-  .dot.bad { background: var(--bad); }
-  button {
-    font: inherit; color: var(--text); background: var(--panel);
-    border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px;
-    cursor: pointer; transition: border-color .15s, background .15s, transform .05s;
+  .panel h4:first-child { margin-top: 2px; }
+  .panel .item {
+    display: block; width: 100%; text-align: left; border: 0; background: transparent;
+    padding: 6px 10px; border-radius: 7px; color: #374151; font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  button:hover { border-color: #2f4257; background: #16202c; }
-  button:active { transform: translateY(1px); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  .btn-primary { background: #0f3d3a; border-color: #1d6b62; color: #b8fff5; }
-  .btn-primary:hover { background: #12504b; }
-  .btn-ghost { background: transparent; }
-  nav {
-    display: flex; gap: 4px; padding: 10px 24px 0; overflow-x: auto;
-    border-bottom: 1px solid var(--line); background: var(--panel-2);
+  .panel .item:hover { background: #f3f4f6; }
+  .panel .item.active { background: var(--green-soft); color: #15803d; font-weight: 600; }
+  .panel .item .small { color: var(--faint); font-size: 11px; margin-left: 6px; }
+
+  /* ---- main ---- */
+  .main { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+  .topbar {
+    height: 54px; flex: none; display: flex; align-items: center; gap: 10px;
+    padding: 0 18px; border-bottom: 1px solid var(--line); background: var(--bg);
   }
-  nav button {
-    border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0;
-    background: transparent; color: var(--muted); padding: 9px 14px;
+  .crumbs { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
+  .crumbs .sep { color: var(--line-strong); }
+  .crumbs .here { color: var(--text); font-weight: 600; }
+  .search {
+    margin-left: auto; display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: #fff;
+    flex: 0 1 280px; min-width: 0;
   }
-  nav button.active { background: var(--bg); color: var(--text); border-color: var(--line); }
-  nav button:hover { color: var(--text); }
-  main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
-  .grid { display: grid; gap: 14px; }
-  .cols-2 { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
-  .cols-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .card {
-    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 16px 18px;
-  }
-  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .9px; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-  .card h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 8px; }
-  .metric { display: flex; flex-direction: column; gap: 2px; }
-  .metric .label { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
-  .metric .value { font-size: 21px; font-weight: 650; letter-spacing: -.3px; }
-  .metric .value.ok { color: var(--ok); } .metric .value.warn { color: var(--warn); } .metric .value.bad { color: var(--bad); }
+  .search svg { width: 15px; height: 15px; stroke: var(--faint); fill: none; stroke-width: 2; }
+  .search input { border: 0; outline: 0; width: 100%; font-size: 13px; }
+  .scroll { overflow-y: auto; overflow-x: hidden; padding: 22px 26px 60px; }
+  .page-title { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font-size: 21px; font-weight: 650; letter-spacing: -.2px; }
+  .page-title svg { width: 20px; height: 20px; stroke: var(--muted); fill: none; stroke-width: 1.8; }
+  .subtitle { color: var(--muted); font-size: 13px; margin: -12px 0 18px; }
+
+  .card { border: 1px solid var(--line); border-radius: var(--radius); background: #fff; padding: 18px 20px; margin-bottom: 16px; }
+  .card > h3 { margin: 0 0 12px; font-size: 13px; font-weight: 650; }
+  .card > h3 .hint { color: var(--faint); font-weight: 400; margin-left: 8px; font-size: 12px; }
+  .infogrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .infobox { background: #f9fafb; border-radius: 8px; padding: 12px 14px; min-height: 68px; }
+  .infobox .label { font-size: 10.5px; letter-spacing: .7px; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; }
+  .infobox .value { font-size: 14px; color: #1f2937; overflow-wrap: anywhere; }
+
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; }
-  tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: rgba(96, 165, 250, .04); }
-  .badge {
-    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px;
-    font-weight: 600; letter-spacing: .3px; border: 1px solid transparent; white-space: nowrap;
-  }
-  .badge.ok { background: rgba(52, 211, 153, .12); color: var(--ok); border-color: rgba(52, 211, 153, .35); }
-  .badge.warn { background: rgba(251, 191, 36, .12); color: var(--warn); border-color: rgba(251, 191, 36, .35); }
-  .badge.bad { background: rgba(248, 113, 113, .12); color: var(--bad); border-color: rgba(248, 113, 113, .35); }
-  .badge.info { background: rgba(96, 165, 250, .12); color: var(--blue); border-color: rgba(96, 165, 250, .35); }
-  .badge.neutral { background: rgba(139, 152, 169, .12); color: var(--muted); border-color: rgba(139, 152, 169, .3); }
-  .kv { display: grid; grid-template-columns: minmax(120px, 38%) 1fr; gap: 5px 14px; }
-  .kv dt { color: var(--muted); font-size: 12px; }
-  .kv dd { margin: 0; overflow-wrap: anywhere; }
-  .muted { color: var(--muted); }
-  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); background: #fafafa; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f1f2f4; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: #fafcff; }
+  .empty { color: var(--muted); padding: 18px 4px; font-size: 13px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid transparent; white-space: nowrap; }
+  .badge.ok { background: var(--green-soft); color: #15803d; border-color: var(--green-line); }
+  .badge.warn { background: var(--amber-soft); color: var(--amber); border-color: #fde68a; }
+  .badge.bad { background: var(--red-soft); color: var(--red); border-color: #fecaca; }
+  .badge.info { background: #eff6ff; color: var(--blue); border-color: #bfdbfe; }
+  .badge.neutral { background: #f3f4f6; color: var(--muted); border-color: var(--line); }
+
+  .btn { border: 1px solid var(--line-strong); background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 13px; color: #374151; }
+  .btn:hover { background: #f9fafb; }
+  .btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn.primary:hover { background: #15803d; }
+  .btn.ghost { border-color: transparent; color: var(--muted); }
+  .btn.small { padding: 3px 9px; font-size: 12px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .spacer { flex: 1; }
-  input, select {
-    font: inherit; color: var(--text); background: var(--panel-2);
-    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 180px;
-  }
-  input:focus, select:focus { outline: 1px solid #2b6f66; border-color: #2b6f66; }
-  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-  .notice {
-    border: 1px solid rgba(251, 191, 36, .3); background: rgba(251, 191, 36, .07);
-    color: #fde68a; padding: 9px 12px; border-radius: 8px; font-size: 12.5px;
-  }
-  .notice.info { border-color: rgba(96, 165, 250, .3); background: rgba(96, 165, 250, .07); color: #bfdbfe; }
-  details.raw { margin-top: 14px; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+  .mono-sm { font-family: ui-monospace, monospace; font-size: 11.5px; color: #4b5563; }
+
+  details.raw { margin-top: 10px; }
   details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-  pre {
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
-    padding: 12px; overflow: auto; max-height: 360px; font-size: 12px; margin: 10px 0 0;
+  pre { background: #0f172a; color: #d1fae5; border-radius: 8px; padding: 12px; overflow: auto; max-height: 340px; font-size: 12px; margin: 10px 0 0; }
+
+  /* ---- chat ---- */
+  .chat { display: flex; flex-direction: column; height: 100%; }
+  .chat-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 26px 30px 10px; }
+  .chat-inner { max-width: 860px; margin: 0 auto; }
+  .welcome { margin: 8vh auto 22px; max-width: 640px; text-align: center; }
+  .welcome h2 { font-size: 24px; margin: 0 0 8px; letter-spacing: -.3px; }
+  .welcome p { color: var(--muted); margin: 0 0 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; color: #374151; }
+  .chip:hover { border-color: var(--green-line); background: var(--green-soft); color: #15803d; }
+  .msg { display: flex; gap: 12px; margin-bottom: 20px; }
+  .avatar { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+  .avatar.user { background: #e0e7ff; color: #3730a3; }
+  .avatar.bot { background: var(--green-soft); color: #15803d; }
+  .bubble { flex: 1; min-width: 0; }
+  .bubble .who { font-size: 11px; color: var(--faint); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .6px; }
+  .bubble .text { white-space: pre-wrap; }
+  .answer-card { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: #fff; overflow: hidden; }
+  .answer-card .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; min-width: 0; }
+  .answer-card .meta .mono-sm { overflow-wrap: anywhere; }
+  .composer { flex: none; border-top: 1px solid var(--line); padding: 14px 30px 18px; background: var(--bg); }
+  .composer-inner { max-width: 860px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; border: 1px solid var(--line-strong); border-radius: 12px; padding: 8px 10px; background: #fff; }
+  .composer textarea { flex: 1; border: 0; outline: 0; resize: none; max-height: 120px; font-size: 14px; line-height: 1.5; padding: 4px 2px; }
+  .composer .hint { color: var(--faint); font-size: 11px; margin: 8px auto 0; max-width: 860px; }
+
+  .kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .kpi .card { margin: 0; }
+  .kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
+  .kpi .value { font-size: 26px; font-weight: 700; letter-spacing: -.5px; margin-top: 4px; }
+  .kpi .value.green { color: var(--green); }
+
+  .list { display: flex; flex-direction: column; }
+  .list button { border: 0; background: transparent; text-align: left; padding: 9px 10px; border-radius: 7px; display: flex; gap: 8px; align-items: center; font-size: 13px; }
+  .list button:hover { background: #f3f4f6; }
+  .list button.active { background: var(--green-soft); color: #15803d; font-weight: 600; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  .tabs button { border: 0; background: transparent; padding: 8px 12px; color: var(--muted); border-bottom: 2px solid transparent; font-size: 13px; }
+  .tabs button.active { color: var(--green); border-bottom-color: var(--green); font-weight: 600; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1000px) {
+    .split { grid-template-columns: 1fr; }
+    .workspace.with-panel { grid-template-columns: 1fr; grid-template-rows: minmax(0, 34vh) minmax(0, 1fr); }
+    .workspace.with-panel .panel { border-right: 0; border-bottom: 1px solid var(--line); }
   }
-  .empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); }
-  #toast {
-    position: fixed; right: 20px; bottom: 20px; z-index: 50; display: flex;
-    flex-direction: column; gap: 8px; max-width: min(520px, 90vw);
+  @media (max-width: 760px) {
+    .search { display: none; }
+    .scroll { padding: 18px 16px 50px; }
+    .chat-scroll { padding: 18px 16px 8px; }
+    .composer { padding: 12px 16px 14px; }
+    .page-title { font-size: 18px; }
   }
-  .toast {
-    padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line);
-    background: #131c27; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); font-size: 13px;
-  }
-  .toast.error { border-color: rgba(248, 113, 113, .5); color: #fecaca; }
-  .toast.ok { border-color: rgba(52, 211, 153, .5); color: #bbf7d0; }
-  .timeline { display: flex; flex-direction: column; gap: 10px; }
-  .event { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding-left: 12px; border-left: 2px solid var(--line); }
-  .event .when { color: var(--muted); font-size: 12px; }
-  .scenario-line { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
-  .scenario-line:last-child { border-bottom: none; }
-  .scenario-line .verdict { width: 54px; flex: none; }
-  .scenario-line .text { flex: 1; overflow-wrap: anywhere; }
-  .pill { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); }
-  .strip { display: flex; gap: 18px; flex-wrap: wrap; }
-  @media (max-width: 640px) { .event { grid-template-columns: 1fr; } header { padding: 12px 14px; } main, nav { padding-left: 14px; padding-right: 14px; } }
+  .toast-wrap { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 80; }
+  .toast { background: #111827; color: #fff; border-radius: 8px; padding: 9px 13px; font-size: 13px; max-width: min(520px, 90vw); box-shadow: 0 10px 28px rgba(0,0,0,.18); }
+  .toast.err { background: #991b1b; }
+  .spinner { width: 14px; height: 14px; border: 2px solid #d1d5db; border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <div class="logo">AI</div>
-    <div>
-      <h1>Life Insurance Claims Decision AI</h1>
-      <div class="sub">Semantic layer · ontology · knowledge graph · deterministic decision · simulated payment</div>
-    </div>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <div class="workspace" id="workspace">
+    <aside class="panel" id="panel" style="display:none"></aside>
+    <section class="main">
+      <div class="topbar">
+        <div class="crumbs" id="crumbs"></div>
+        <div class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="global-search" placeholder="Search terms, tables, claims…" onkeydown="if(event.key==='Enter'){go('terms')}">
+        </div>
+      </div>
+      <div id="content" style="flex:1;overflow:hidden;display:flex;flex-direction:column"></div>
+    </section>
   </div>
-  <span class="chip" id="health"><span class="dot"></span><span>connecting…</span></span>
-  <button class="btn-ghost" onclick="resetData()">Reset sample data</button>
-  <button class="btn-primary" onclick="setTab('scenario').then(runScenario)">Run full scenario</button>
-</header>
-
-<nav id="tabs">
-  <button data-tab="claim" class="active" onclick="setTab('claim')">Claim</button>
-  <button data-tab="decision" onclick="setTab('decision')">Decision</button>
-  <button data-tab="payments" onclick="setTab('payments')">Payments</button>
-  <button data-tab="audit" onclick="setTab('audit')">Audit trail</button>
-  <button data-tab="ontology" onclick="setTab('ontology')">Ontology</button>
-  <button data-tab="semantics" onclick="setTab('semantics')">Semantic layer</button>
-  <button data-tab="scenario" onclick="setTab('scenario')">Scenario runner</button>
-</nav>
-
-<main>
-  <div id="claim-bar" class="row" style="margin-bottom:14px"></div>
-  <section id="view"><div class="empty">Loading…</div></section>
-</main>
-<div id="toast"></div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
 
 <script>
 const API = '/api/insurance';
+const ICONS = {
+  chat: '<path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-5.5A8 8 0 1 1 21 12Z"/>',
+  discovery: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>',
+  terms: '<path d="M4 5h9l7 7-8 8-8-8V5Z"/><circle cx="8.5" cy="9.5" r="1.4"/>',
+  analysis: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  exploration: '<path d="m3 17 5-5 4 3 6-7 3 3"/><path d="M3 21h18"/>',
+  data: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+  analytics: '<path d="M4 18v-6M10 18V6M16 18v-9M22 18H2"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.6a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9 2 2 0 1 1 0 4Z"/>',
+};
+const NAV = [
+  ['chat', 'Chat'], ['discovery', 'Discovery'], ['terms', 'Terms'],
+  ['analysis', 'Analysis'], ['exploration', 'Exploration'],
+  ['data', 'Data'], ['analytics', 'Analytics'], ['settings', 'Settings'],
+];
+
 const state = {
-  health: null, claims: [], claimId: null, claim: null,
-  graph: null, audit: null, ontology: null, definitions: null, rules: null,
-  policySemantics: null, tab: 'claim', scenario: [],
+  page: 'chat', health: null, claims: [], claimId: null, claim: null,
+  catalog: null, table: null, tables: {}, ontology: null, definitions: null,
+  rules: null, analytics: null, messages: [], busy: false,
+  selectedTerm: null,
 };
 
-/* ---------------------------------------------------------------- helpers */
+/* ------------------------------------------------------------------ utils */
 async function api(path, options = {}) {
   const response = await fetch(API + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
+    headers: { 'Content-Type': 'application/json' }, ...options,
   });
   let body = null;
   try { body = await response.json(); } catch (_) { body = null; }
   if (!response.ok) {
     const detail = body && body.detail ? body.detail : body;
     const text = typeof detail === 'string' ? detail : JSON.stringify(detail);
-    throw new Error(`HTTP ${response.status} — ${text}`);
+    throw new Error(text);
   }
   return body;
 }
@@ -210,566 +260,549 @@ function esc(value) {
 
 function money(value) {
   const number = Number(String(value ?? '').replaceAll(',', ''));
-  if (!Number.isFinite(number)) return String(value ?? '—');
+  if (!Number.isFinite(number)) return value == null ? '—' : String(value);
   return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function toast(message, kind = '') {
-  const node = document.createElement('div');
-  node.className = `toast ${kind}`;
-  node.textContent = message;
-  document.getElementById('toast').appendChild(node);
-  setTimeout(() => node.remove(), 7000);
 }
 
 function badge(status) {
   const value = String(status ?? '—');
-  const ok = ['PASS', 'SATISFIED', 'VERIFIED', 'SETTLED', 'AUTO_APPROVED', 'PAID', 'IN_FORCE'];
-  const warn = ['MANUAL_REVIEW', 'UNDER_REVIEW', 'REFER', 'REQUIRES_APPROVAL', 'PENDING'];
+  const ok = ['PASS', 'SATISFIED', 'VERIFIED', 'SETTLED', 'AUTO_APPROVED', 'PAID', 'IN_FORCE', 'CERTIFIED'];
+  const warn = ['MANUAL_REVIEW', 'UNDER_REVIEW', 'REFER', 'PENDING'];
   const bad = ['FAIL', 'VIOLATED', 'REJECTED', 'DECLINED', 'FAILED'];
+  const info = ['INFO', 'PRIMARY'];
   let cls = 'neutral';
   if (ok.includes(value)) cls = 'ok';
   else if (warn.includes(value)) cls = 'warn';
   else if (bad.includes(value)) cls = 'bad';
-  else if (['INFO', 'EVALUATED'].includes(value)) cls = 'info';
+  else if (info.includes(value)) cls = 'info';
   return `<span class="badge ${cls}">${esc(value)}</span>`;
 }
 
-function metric(label, value, cls = '') {
-  return `<div class="metric"><span class="label">${esc(label)}</span>
-    <span class="value ${cls}">${esc(value)}</span></div>`;
+function toast(message, error = false) {
+  const node = document.createElement('div');
+  node.className = `toast${error ? ' err' : ''}`;
+  node.textContent = message;
+  document.getElementById('toasts').appendChild(node);
+  setTimeout(() => node.remove(), 6000);
 }
 
-function card(title, body, hint = '') {
-  return `<div class="card"><h2>${esc(title)}${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</h2>${body}</div>`;
-}
-
-function table(headers, rows) {
-  if (!rows.length) return '<div class="empty">No rows.</div>';
-  return `<div style="overflow:auto"><table><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
-    <tbody>${rows.join('')}</tbody></table></div>`;
+function table(columns, rows, empty = 'No rows.') {
+  if (!rows || !rows.length) return `<div class="empty">${esc(empty)}</div>`;
+  return `<div style="overflow:auto"><table><thead><tr>${columns
+    .map((column) => `<th>${esc(column)}</th>`).join('')}</tr></thead><tbody>${rows
+    .map((row) => `<tr>${row
+      .map((cell) => {
+        const text = cell == null ? '' : String(cell);
+        const trusted = text.startsWith('<span class="badge') || text.startsWith('<button');
+        return `<td>${trusted ? text : esc(text)}</td>`;
+      })
+      .join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
 function raw(label, value) {
   return `<details class="raw"><summary>${esc(label)}</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
 }
 
-function when(iso) {
-  if (!iso) return '—';
-  return String(iso).replace('T', ' ').slice(0, 19);
+function icon(name) { return `<svg viewBox="0 0 24 24">${ICONS[name] || ''}</svg>`; }
+
+/* ------------------------------------------------------------- navigation */
+function go(page, param) {
+  const hash = param ? `#/${page}/${encodeURIComponent(param)}` : `#/${page}`;
+  if (location.hash === hash) { route(); } else { location.hash = hash; }
 }
 
-/* ------------------------------------------------------------------- boot */
-async function boot() {
+function route() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  state.page = parts[0] || 'chat';
+  const param = parts[1] ? decodeURIComponent(parts[1]) : null;
+  state.param = param;
+  render();
+}
+
+function renderRail() {
+  document.getElementById('rail').innerHTML = `<div class="brand">DO</div>` + NAV.map(([key, label]) =>
+    `<button class="${state.page === key ? 'active' : ''}" onclick="go('${key}')" title="${label}">
+      ${icon(key)}<span>${label}</span></button>`).join('');
+}
+
+function setCrumbs(parts, here) {
+  document.getElementById('crumbs').innerHTML = parts
+    .map((part) => `<span>${esc(part)}</span><span class="sep">/</span>`).join('') +
+    `<span class="here">${esc(here)}</span>`;
+}
+
+async function render() {
+  renderRail();
+  const workspace = document.getElementById('workspace');
+  const panel = document.getElementById('panel');
+  const content = document.getElementById('content');
+  workspace.classList.remove('with-panel');
+  panel.style.display = 'none';
+
+  if (state.page === 'chat') { setCrumbs(['Chat'], 'Claims assistant'); content.innerHTML = viewChat(); scrollChat(); return; }
+  if (state.page === 'data') return renderDataPage(workspace, panel, content);
+  if (state.page === 'terms') return renderTermsPage(workspace, panel, content);
+  if (state.page === 'analysis') return renderAnalysisPage(workspace, panel, content);
+  if (state.page === 'discovery') return renderDiscoveryPage(workspace, panel, content);
+  if (state.page === 'exploration') return renderExplorationPage(workspace, panel, content);
+  if (state.page === 'analytics') return renderAnalyticsPage(workspace, panel, content);
+  if (state.page === 'settings') return renderSettingsPage(workspace, panel, content);
+}
+
+/* ------------------------------------------------------------------- chat */
+const CHAT_SUGGESTIONS = [
+  'What is the status of CLM-2001?',
+  'Why was CLM-2001 approved?',
+  'Show the audit chain for CLM-2001',
+  'Which claims are under manual review?',
+  'What is net_death_benefit for POL-1001?',
+  'List the ontology constraints',
+];
+
+function viewChat() {
+  const messages = state.messages.map((message) => message.role === 'user'
+    ? `<div class="msg"><div class="avatar user">You</div><div class="bubble">
+        <div class="who">You</div><div class="text">${esc(message.text)}</div></div></div>`
+    : `<div class="msg"><div class="avatar bot">DO</div><div class="bubble">
+        <div class="who">Claims assistant · deterministic</div>${renderAnswer(message.data)}</div></div>`).join('');
+  const welcome = state.messages.length ? '' : `<div class="welcome">
+      <h2>Ask the claims database</h2>
+      <p>Questions resolve against the ${state.catalog ? state.catalog.table_count : 23} claims tables,
+      the ontology and the certified semantic layer. Every answer includes the SQL it used.</p>
+      <div class="chips">${CHAT_SUGGESTIONS.map((question) =>
+        `<button class="chip" onclick="askQuestion('${esc(question).replaceAll("'", "\\'")}')">${esc(question)}</button>`).join('')}</div>
+    </div>`;
+  return `<div class="chat">
+    <div class="chat-scroll" id="chat-scroll"><div class="chat-inner">${welcome}${messages}
+      ${state.busy ? '<div class="msg"><div class="avatar bot">DO</div><div class="bubble"><span class="spinner"></span> <span class="muted">Querying the catalog…</span></div></div>' : ''}
+    </div></div>
+    <div class="composer"><div class="composer-inner">
+      <textarea id="chat-input" rows="1" placeholder="Ask about a claim, rule, definition or constraint…"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+      <button class="btn primary" onclick="sendChat()">Send</button>
+    </div><div class="hint">Enter to send · Shift+Enter for a new line · read-only, answers cite SQL</div></div>
+  </div>`;
+}
+
+function renderAnswer(data) {
+  const meta = `<div class="meta"><span class="badge info">${esc(data.intent)}</span>
+    ${data.sources && data.sources.length ? `<span class="faint mono-sm">${esc(data.sources.join(' · '))}</span>` : ''}</div>`;
+  const resultTable = data.table && data.table.columns && data.table.columns.length
+    ? `<div style="margin-top:12px">${table(data.table.columns, data.table.rows, 'No rows matched.')}</div>` : '';
+  const sql = data.sql ? `<details class="raw"><summary>SQL used</summary><pre>${esc(data.sql)}</pre></details>` : '';
+  return `<div class="answer-card">${meta}<div class="text">${esc(data.answer)}</div>${resultTable}${sql}</div>`;
+}
+
+function scrollChat() {
+  const node = document.getElementById('chat-scroll');
+  if (node) node.scrollTop = node.scrollHeight;
+}
+
+async function askQuestion(question) {
+  if (state.busy) return;
+  if (state.page !== 'chat') { state.page = 'chat'; location.hash = '#/chat'; }
+  state.messages.push({ role: 'user', text: question });
+  state.busy = true;
+  render();
   try {
-    state.health = await api('/health');
-    document.getElementById('health').innerHTML =
-      `<span class="dot ok"></span><span>${esc(state.health.storage)} · v${esc(state.health.engine_version)}</span>`;
+    const answer = await api('/ask', { method: 'POST', body: JSON.stringify({ question }) });
+    state.messages.push({ role: 'assistant', data: answer });
   } catch (error) {
-    document.getElementById('health').innerHTML = `<span class="dot bad"></span><span>API unreachable</span>`;
-    toast(error.message, 'error');
-    document.getElementById('view').innerHTML =
-      `<div class="empty">Cannot reach the claims API.<br>Start it with <code>python -m auto_ontology.insurance.api</code>.</div>`;
-    return;
+    state.messages.push({ role: 'assistant', data: { intent: 'error', answer: error.message } });
   }
-  await loadClaims();
-  await setTab('claim');
+  state.busy = false;
+  render();
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const question = input.value.trim();
+  if (!question) return;
+  input.value = '';
+  askQuestion(question);
+}
+
+/* ------------------------------------------------------------------- data */
+async function renderDataPage(workspace, panel, content) {
+  workspace.classList.add('with-panel');
+  panel.style.display = 'block';
+  if (!state.catalog) {
+    content.innerHTML = `<div class="scroll"><span class="spinner"></span> Loading catalog…</div>`;
+    try { state.catalog = await api('/data'); }
+    catch (error) { content.innerHTML = `<div class="scroll"><div class="empty">${esc(error.message)}</div></div>`; return; }
+  }
+  const tables = state.catalog.tables;
+  const preferred = tables.find((entry) => entry.name === 'insurance_claim');
+  const active = state.param || (state.table && state.table.name) || (preferred || tables[0]).name;
+  panel.innerHTML = `<h4>Database</h4>
+    <div class="item active" style="cursor:default">${esc(state.catalog.database)} <span class="small">${tables.length}</span></div>
+    ${Object.entries(state.catalog.layers).map(([layer, names]) => `<h4>${esc(layer)}</h4>${names.map((name) =>
+      `<button class="item ${name === active ? 'active' : ''}" onclick="go('data','${name}')">${esc(name.replace('insurance_', ''))}
+        <span class="small">${tables.find((entry) => entry.name === name).rows}</span></button>`).join('')}`).join('')}`;
+  if (!state.table || state.table.name !== active) {
+    content.innerHTML = `<div class="scroll"><span class="spinner"></span> Loading table…</div>`;
+    try { state.table = await api(`/data/${encodeURIComponent(active)}`); }
+    catch (error) { content.innerHTML = `<div class="scroll"><div class="empty">${esc(error.message)}</div></div>`; return; }
+  }
+  const detail = state.table;
+  setCrumbs(['Chat', 'All Data', state.catalog.database, detail.layer], detail.name);
+  const columnRows = detail.columns.map((column) => [
+    column.primary_key ? 'PK' : '',
+    column.name,
+    column.type,
+    column.nullable ? 'nullable' : 'required',
+    column.foreign_key || '—',
+  ]);
+  const relationRows = detail.relationships.map((relation) => [relation.column, relation.references]);
+  content.innerHTML = `<div class="scroll">
+    <h1 class="page-title">${icon('data')}${esc(detail.name)}</h1>
+    <div class="card"><h3>Description</h3><div class="muted">${esc(detail.description || 'No description recorded.')}</div></div>
+    <div class="card"><h3>Information</h3><div class="infogrid">
+      <div class="infobox"><div class="label">Type</div><div class="value">${esc(detail.type)}</div></div>
+      <div class="infobox"><div class="label">Name</div><div class="value">${esc(detail.name)}</div></div>
+      <div class="infobox"><div class="label">Schema</div><div class="value">${esc(state.catalog.schema)}</div></div>
+      <div class="infobox"><div class="label">Database</div><div class="value">${esc(state.catalog.database)}</div></div>
+      <div class="infobox"><div class="label">Columns</div><div class="value">${detail.column_count}</div></div>
+      <div class="infobox"><div class="label">Rows</div><div class="value">${detail.row_count}</div></div>
+    </div></div>
+    <div class="card"><h3>Columns <span class="hint">${detail.column_count}</span></h3>
+      ${table(['Key', 'Name', 'Type', 'Nullability', 'References'], columnRows)}</div>
+    ${relationRows.length ? `<div class="card"><h3>Relationships</h3>${table(['Column', 'References'], relationRows)}</div>` : ''}
+    <div class="card"><h3>Sample rows <span class="hint">up to 10</span></h3>
+      ${table(detail.sample.columns, detail.sample.rows, 'This table is empty.')}</div>
+    <div class="card"><h3>Explore</h3>
+      <div class="muted" style="margin-bottom:10px">Open this table in Exploration, or ask about it in Chat.</div>
+      <div class="row"><button class="btn" onclick="exploreTable('${esc(detail.name)}')">Query in Exploration</button>
+      <button class="btn" onclick="askQuestion('How many rows are in ${esc(detail.name)}?')">Ask about it</button></div></div>
+  </div>`;
+}
+
+function exploreTable(name) {
+  state.explorationSql = `SELECT * FROM ${name} LIMIT 50`;
+  go('exploration');
+}
+
+/* ------------------------------------------------------------------ terms */
+async function renderTermsPage(workspace, panel, content) {
+  workspace.classList.add('with-panel');
+  panel.style.display = 'block';
+  if (!state.definitions || !state.ontology) {
+    content.innerHTML = `<div class="scroll"><span class="spinner"></span> Loading catalog…</div>`;
+    try {
+      const [definitions, ontology] = await Promise.all([
+        api('/semantic/definitions'), api('/ontology'),
+      ]);
+      state.definitions = definitions.definitions;
+      state.ontology = ontology.catalog;
+    } catch (error) {
+      content.innerHTML = `<div class="scroll"><div class="empty">${esc(error.message)}</div></div>`;
+      return;
+    }
+  }
+  const selected = state.param || state.selectedTerm || `semantic:${state.definitions[0].name}`;
+  const [kind, name] = selected.split(':');
+  const definition = kind === 'semantic' ? state.definitions.find((item) => item.name === name) : null;
+  const ontologyClass = kind === 'class' ? state.ontology.classes.find((item) => item.name === name) : null;
+
+  panel.innerHTML = `<h4>Semantic definitions</h4>${state.definitions.map((item) =>
+      `<button class="item ${selected === `semantic:${item.name}` ? 'active' : ''}" onclick="go('terms','semantic:${item.name}')">
+        ${esc(item.display_name)}</button>`).join('')}
+    <h4>Ontology classes</h4>${state.ontology.classes.map((item) =>
+      `<button class="item ${selected === `class:${item.name}` ? 'active' : ''}" onclick="go('terms','class:${item.name}')">
+        ${esc(item.name)}</button>`).join('')}`;
+
+  setCrumbs(['Chat', 'All Data', 'terms'], definition ? definition.display_name : name);
+  if (definition) {
+    content.innerHTML = `<div class="scroll">
+      <h1 class="page-title">${icon('terms')}${esc(definition.display_name)}</h1>
+      <div class="card"><h3>Definition</h3><div class="muted">${esc(definition.description)}</div></div>
+      <div class="card"><h3>Information</h3><div class="infogrid">
+        <div class="infobox"><div class="label">Kind</div><div class="value">${esc(definition.definition_kind)}</div></div>
+        <div class="infobox"><div class="label">Name</div><div class="value mono">${esc(definition.name)}</div></div>
+        <div class="infobox"><div class="label">Unit</div><div class="value">${esc(definition.unit)}</div></div>
+        <div class="infobox"><div class="label">Version</div><div class="value">v${esc(definition.version)}</div></div>
+        <div class="infobox"><div class="label">Certification</div><div class="value">${definition.is_certified ? badge('CERTIFIED') : badge('DRAFT')}</div></div>
+        <div class="infobox"><div class="label">Owner</div><div class="value">${esc(definition.owner)}</div></div>
+      </div></div>
+      <div class="card"><h3>Formula</h3><pre style="background:#0f172a;color:#d1fae5">${esc(definition.formula)}</pre></div>
+      <div class="card"><h3>Depends on</h3>${definition.depends_on.length
+        ? table(['Definition'], definition.depends_on.map((item) => [item]))
+        : '<div class="empty">No upstream definitions.</div>'}</div>
+    </div>`;
+  } else if (ontologyClass) {
+    content.innerHTML = `<div class="scroll">
+      <h1 class="page-title">${icon('terms')}${esc(ontologyClass.name)}</h1>
+      <div class="card"><h3>Description</h3><div class="muted">${esc(ontologyClass.description)}</div></div>
+      <div class="card"><h3>Information</h3><div class="infogrid">
+        <div class="infobox"><div class="label">IRI</div><div class="value mono">${esc(ontologyClass.iri)}</div></div>
+        <div class="infobox"><div class="label">Parents</div><div class="value">${esc(ontologyClass.parents.join(', ') || 'root')}</div></div>
+        <div class="infobox"><div class="label">Constraints</div><div class="value">${ontologyClass.constraints.length}</div></div>
+      </div></div>
+      <div class="card"><h3>Class constraints</h3>
+        ${table(['Statement'], ontologyClass.constraints.map((item) => [item]), 'None recorded.')}</div>
+    </div>`;
+  } else {
+    content.innerHTML = `<div class="scroll"><div class="empty">Select a term.</div></div>`;
+  }
+}
+
+/* --------------------------------------------------------------- analysis */
+async function renderAnalysisPage(workspace, panel, content) {
+  panel.style.display = 'none';
+  if (!state.claims.length) { try { await loadClaims(); } catch (error) { toast(error.message, true); } }
+  if (!state.rules) { try { state.rules = (await api('/rules')).rules; } catch (_) { state.rules = []; } }
+  const active = state.param || state.claimId || (state.claims[0] && state.claims[0].claim_id);
+  if (active && (!state.claim || state.claim.claim.claim_id !== active)) {
+    state.claimId = active;
+    try { state.claim = await api(`/claims/${encodeURIComponent(active)}`); }
+    catch (error) { toast(error.message, true); }
+  }
+  setCrumbs(['Chat', 'All Data', 'analysis'], active || 'Claims');
+  const detail = state.claim;
+  const rows = state.claims.map((claim) => [
+    claim.claim_id, claim.policy_number, badge(claim.status), badge(claim.decision_status),
+    `$${money(claim.net_payout_amount)}`,
+    `<button class="btn small" onclick="go('analysis','${esc(claim.claim_id)}')">Open</button>`,
+  ]);
+  const decision = detail ? detail.decision : null;
+  const ruleRows = decision ? decision.decision_rules_applied.map((rule) => [
+    rule.rule_id, rule.name, badge(rule.status), rule.message,
+  ]) : [];
+  const paymentRows = detail ? (detail.payments || []).map((payment) => [
+    payment.payment_id, badge(payment.status), `$${money(payment.amount)}`,
+    payment.provider_reference, payment.approved_by || '—',
+    `<button class="btn small" onclick="verifyPayment('${esc(payment.payment_id)}')">Verify</button>`,
+  ]) : [];
+  content.innerHTML = `<div class="scroll">
+    <h1 class="page-title">${icon('analysis')}Claims analysis</h1>
+    <div class="subtitle">Run the decision engine, inspect all 15 rules, pay and verify — the same flow the API exposes.</div>
+    <div class="card"><h3>Claims</h3>${table(['Claim', 'Policy', 'Status', 'Decision', 'Payout', ''], rows, 'No claims.')}</div>
+    ${detail ? `<div class="card"><h3>${esc(detail.claim.claim_id)} <span class="hint">${esc(detail.policy.policy_number)} · ${esc(detail.insured.name)}</span></h3>
+      <div class="row" style="margin-bottom:14px">
+        <button class="btn primary" onclick="decideClaim()">Run decision</button>
+        <button class="btn" onclick="payClaim()">Pay (simulated)</button>
+        <button class="btn" onclick="showAudit()">Audit chain</button>
+        <span class="spacer"></span>${badge(detail.claim.status)}
+      </div>
+      ${decision ? `<div class="infogrid" style="margin-bottom:14px">
+        <div class="infobox"><div class="label">Decision</div><div class="value">${badge(decision.approval_status)}</div></div>
+        <div class="infobox"><div class="label">Net payout</div><div class="value">$${money(decision.net_payout_amount)}</div></div>
+        <div class="infobox"><div class="label">Rules passed</div><div class="value">${decision.decision_rules_applied.filter((r) => r.status === 'PASS').length}/${decision.decision_rules_applied.length}</div></div>
+        <div class="infobox"><div class="label">Audit reference</div><div class="value mono-sm">${esc(decision.audit_reference)}</div></div>
+      </div>
+      <div class="muted" style="margin-bottom:12px">${esc(decision.decision_explanation)}</div>
+      ${table(['Rule', 'Name', 'Result', 'Why'], ruleRows)}`
+        : '<div class="empty">No decision yet. Run the engine.</div>'}
+    </div>
+    <div class="card"><h3>Payments</h3>${table(['Payment', 'Status', 'Amount', 'Provider', 'Approved by', ''], paymentRows, 'No payments.')}</div>`
+      : ''}
+    <div class="card"><h3>Decision rule catalog <span class="hint">${state.rules.length}</span></h3>
+      ${table(['Rule', 'Category', 'Severity', 'On fail', 'Expression'],
+        state.rules.map((rule) => [rule.id, rule.category, rule.severity, rule.on_fail_action, rule.expression]))}</div>
+    <div id="audit-slot"></div>
+  </div>`;
 }
 
 async function loadClaims() {
   const body = await api('/claims');
   state.claims = body.claims || [];
   if (!state.claimId && state.claims.length) state.claimId = state.claims[0].claim_id;
-  renderClaimBar();
 }
 
-function renderClaimBar() {
-  const bar = document.getElementById('claim-bar');
-  if (!state.claims.length) { bar.innerHTML = ''; return; }
-  const options = state.claims.map((claim) =>
-    `<option value="${esc(claim.claim_id)}" ${claim.claim_id === state.claimId ? 'selected' : ''}>
-      ${esc(claim.claim_id)} · ${esc(claim.policy_number)} · ${esc(claim.status)}
-    </option>`).join('');
-  const current = state.claims.find((claim) => claim.claim_id === state.claimId);
-  bar.innerHTML = `
-    <label class="field">Claim on record
-      <select onchange="selectClaim(this.value)">${options}</select>
-    </label>
-    <span class="chip">decision ${current ? badge(current.decision_status) : '—'}</span>
-    <span class="chip">payout $${money(current ? current.net_payout_amount : '—')}</span>
-    <span class="spacer"></span>
-    <span class="pill">SQLite/Postgres · payments simulated</span>`;
-}
-
-async function selectClaim(claimId) {
-  state.claimId = claimId;
-  state.claim = null; state.graph = null; state.audit = null; state.policySemantics = null;
-  await loadClaim();
-  renderClaimBar();
-  render();
-}
-
-async function loadClaim() {
-  if (!state.claimId) return;
-  state.claim = await api(`/claims/${encodeURIComponent(state.claimId)}`);
-}
-
-/* ------------------------------------------------------------------- tabs */
-async function setTab(tab) {
-  state.tab = tab;
-  document.querySelectorAll('#tabs button').forEach((button) => {
-    button.classList.toggle('active', button.dataset.tab === tab);
-  });
+async function decideClaim() {
   try {
-    if (!state.claim) await loadClaim();
-    if (tab === 'decision' && !state.graph) {
-      try { state.graph = await api(`/claims/${encodeURIComponent(state.claimId)}/graph`); }
-      catch (error) { state.graph = null; }
-    }
-    if (tab === 'audit' && !state.audit) {
-      state.audit = await api(`/claims/${encodeURIComponent(state.claimId)}/audit`);
-    }
-    if (tab === 'ontology') {
-      if (!state.ontology) state.ontology = await api('/ontology');
-      if (!state.rules) state.rules = (await api('/rules')).rules;
-    }
-    if (tab === 'semantics') {
-      if (!state.definitions) state.definitions = (await api('/semantic/definitions')).definitions;
-      const policyId = state.claim && state.claim.policy ? state.claim.policy.policy_id : null;
-      if (policyId && !state.policySemantics) {
-        state.policySemantics = await api(`/policies/${encodeURIComponent(policyId)}/semantics`);
-      }
-    }
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-  render();
-}
-
-function render() {
-  const views = {
-    claim: viewClaim, decision: viewDecision, payments: viewPayments, audit: viewAudit,
-    ontology: viewOntology, semantics: viewSemantics, scenario: viewScenario,
-  };
-  try {
-    document.getElementById('view').innerHTML = (views[state.tab] || viewClaim)();
-  } catch (error) {
-    document.getElementById('view').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
-  }
-}
-
-/* ------------------------------------------------------------------ claim */
-function viewClaim() {
-  if (!state.claim) return '<div class="empty">No claim selected.</div>';
-  const { claim, policy, insured, beneficiaries, death_certificate, evidence, payments } = state.claim;
-  const identity = card('Insured & claim', `<dl class="kv">
-      <dt>Claim</dt><dd class="mono">${esc(claim.claim_id)} <span class="muted">(${esc(claim.claim_number)})</span></dd>
-      <dt>Status</dt><dd>${badge(claim.status)}</dd>
-      <dt>Date of death</dt><dd>${esc(when(claim.date_of_death))}</dd>
-      <dt>Cause</dt><dd class="mono">${esc(claim.cause_code)}</dd>
-      <dt>Category</dt><dd>${esc(claim.cause_of_death ? claim.cause_of_death.category : '—')}</dd>
-      <dt>Submitted</dt><dd>${esc(when(claim.submitted_at))} · ${esc(claim.channel)}</dd>
-      <dt>Insured</dt><dd>${esc(insured.name)} <span class="muted">(${esc(insured.insured_person_id)})</span></dd>
-    </dl>`);
-  const policyCard = card('Policy', `<dl class="kv">
-      <dt>Number</dt><dd class="mono">${esc(policy.policy_number)}</dd>
-      <dt>Product</dt><dd>${esc(policy.product)}</dd>
-      <dt>Status</dt><dd>${badge(policy.status)}</dd>
-      <dt>In force</dt><dd>${esc(policy.effective_date.slice(0, 10))} → ${esc(policy.expiry_date.slice(0, 10))}</dd>
-      <dt>Face amount</dt><dd>$${money(policy.face_amount)}</dd>
-      <dt>Contestability</dt><dd>${esc(policy.contestability_days)} days</dd>
-    </dl>`);
-  const beneficiaryRows = beneficiaries.map((person) => `<tr>
-      <td class="mono">${esc(person.beneficiary_id)}</td><td>${esc(person.name)}</td>
-      <td>${esc(person.relationship)}</td><td>${esc(person.designation_type)}</td>
-      <td>${esc(person.allocation_percent)}%</td><td>${badge(person.verification_status)}</td></tr>`);
-  const evidenceRows = evidence.map((item) => `<tr>
-      <td>${esc(item.evidence_type)}</td><td class="mono" style="max-width:280px;overflow-wrap:anywhere">${esc(item.document_ref)}</td>
-      <td>${badge(item.status)}</td><td>${esc(item.verified_by)}</td></tr>`);
-  const paymentRows = (payments || []).map((payment) => `<tr>
-      <td class="mono">${esc(payment.payment_id)}</td><td>${badge(payment.status)}</td>
-      <td>$${money(payment.amount)}</td><td class="mono">${esc(payment.provider_reference)}</td>
-      <td>${payment.idempotent_replay ? '<span class="badge info">replay</span>' : '—'}</td></tr>`);
-  return `<div class="grid cols-2">
-    ${identity}${policyCard}
-  </div>
-  <div class="grid" style="margin-top:14px">
-    ${card('Beneficiaries', table(['ID', 'Name', 'Relationship', 'Designation', 'Allocation', 'Verified'], beneficiaryRows))}
-    ${card('Evidence', table(['Type', 'Document', 'Status', 'Verified by'], evidenceRows))}
-    ${card('Payments', paymentRows.length ? table(['Payment', 'Status', 'Amount', 'Provider reference', ''], paymentRows)
-      : '<div class="empty">No payment yet — approve the claim, then use the Payments tab.</div>')}
-    ${raw('Raw claim response', state.claim)}
-  </div>`;
-}
-
-async function decide() {
-  const claimId = state.claimId;
-  try {
-    const decision = await api(`/claims/${encodeURIComponent(claimId)}/decision`, {
-      method: 'POST',
-      body: JSON.stringify({ actor: 'officer:j.mensah' }),
+    const decision = await api(`/claims/${encodeURIComponent(state.claimId)}/decision`, {
+      method: 'POST', body: JSON.stringify({ actor: 'officer:j.mensah' }),
     });
-    toast(`${claimId}: ${decision.approval_status} · $${decision.net_payout_amount}`, 'ok');
-    state.graph = null; state.audit = null;
-    await loadClaims(); await loadClaim();
-    state.tab = 'decision';
-    await setTab('decision');
-  } catch (error) {
-    toast(error.message, 'error');
-  }
+    toast(`${decision.approval_status} · $${money(decision.net_payout_amount)}`);
+  } catch (error) { toast(error.message, true); }
+  await loadClaims();
+  state.claim = await api(`/claims/${encodeURIComponent(state.claimId)}`);
+  render();
 }
 
-/* --------------------------------------------------------------- decision */
-function viewDecision() {
-  const decision = state.claim ? state.claim.decision : null;
-  if (!decision) {
-    return `<div class="empty" style="display:grid;gap:14px;justify-items:center">
-      <div>This claim has not been decided yet.</div>
-      <button class="btn-primary" onclick="decide()">Run the decision engine on ${esc(state.claimId)}</button>
-    </div>`;
-  }
-  const rules = decision.decision_rules_applied || [];
-  const passed = rules.filter((rule) => rule.status === 'PASS').length;
-  const constraints = decision.ontology_validation_results || [];
-  const satisfied = constraints.filter((item) => item.status === 'SATISFIED').length;
-  const values = (decision.semantic_calculations && decision.semantic_calculations.values) || [];
-  const kg = decision.knowledge_graph_evidence || {};
-
-  const summary = `<div class="grid cols-3">
-    ${card('Outcome', `<div class="strip">${metric('Status', decision.approval_status,
-      decision.approval_status === 'AUTO_APPROVED' ? 'ok' : 'warn')}
-      ${metric('Net payout', `$${money(decision.net_payout_amount)}`, decision.net_payout_amount === '0.00' ? 'warn' : 'ok')}
-      ${metric('Confidence', `${Math.round(decision.confidence_score * 100)}%`)}</div>
-      <div class="notice info" style="margin-top:12px">${esc(decision.decision_explanation)}</div>
-      <div class="row" style="margin-top:12px"><span class="pill">audit ${esc(decision.audit_reference)}</span>
-      <span class="pill">decision ${esc(decision.decision_id)}</span>
-      <span class="spacer"></span><button onclick="decide()">Re-run decision</button></div>`) }
-    ${card('Rules', `<div class="strip">${metric('Passed', `${passed}/${rules.length}`, passed === rules.length ? 'ok' : 'bad')}</div>
-      <div class="muted" style="margin-top:8px">${esc(decision.decision_path)}</div>`) }
-    ${card('Knowledge graph', `<div class="strip">${metric('Nodes', kg.node_count)}
-      ${metric('Edges', kg.edge_count)}
-      ${metric('Violations', (kg.ontology_violations || []).length, (kg.ontology_violations || []).length ? 'bad' : 'ok')}</div>
-      <div class="muted" style="margin-top:10px">${esc(kg.evidence_chain_text || '')}</div>`) }
-  </div>`;
-
-  const ruleRows = rules.map((rule) => `<tr>
-      <td class="mono">${esc(rule.rule_id)}</td>
-      <td>${esc(rule.name)}<div class="muted" style="font-size:12px">${esc(rule.message)}</div>
-        ${rule.evidence ? `<details class="raw"><summary>evidence</summary><pre>${esc(JSON.stringify(rule.evidence, null, 2))}</pre></details>` : ''}</td>
-      <td>${esc(rule.category)}</td><td>${esc(rule.severity)}</td><td>${badge(rule.status)}</td></tr>`);
-
-  const constraintRows = constraints.map((item) => `<tr>
-      <td class="mono">${esc(item.constraint)}</td>
-      <td>${esc(item.statement)}<div class="muted" style="font-size:12px">${esc(item.evidence || '')}</div></td>
-      <td>${badge(item.status)}</td></tr>`);
-
-  const valueRows = values.map((value) => `<tr>
-      <td>${esc(value.display_name || value.name)}<div class="pill">${esc(value.name)}</div></td>
-      <td><strong>${esc(value.display_value)}</strong></td>
-      <td class="mono" style="font-size:11.5px">${esc(value.formula)}</td>
-      <td>${esc(value.definition_kind)} · v${esc(value.definition_version)}</td></tr>`);
-
-  const statements = (kg.statements || []).slice(0, 24).map((line) => `<li>${esc(line)}</li>`).join('');
-  const classRows = Object.entries(kg.class_counts || {}).map(([name, count]) =>
-    `<tr><td class="mono">${esc(name)}</td><td>${esc(count)}</td></tr>`);
-
-  return `${summary}
-    <div class="grid" style="margin-top:14px">
-      ${card('Decision rules', table(['Rule', 'Why', 'Category', 'Severity', 'Result'], ruleRows), `${passed}/${rules.length} passed`)}
-      ${card('Ontology constraints', table(['Constraint', 'Statement', 'Result'], constraintRows), `${satisfied}/${constraints.length} satisfied`)}
-    </div>
-    <div class="grid cols-2" style="margin-top:14px">
-      ${card('Semantic calculations', table(['Definition', 'Value', 'Formula', 'Kind'], valueRows), `${values.length} evaluated`)}
-      ${card('Graph evidence', `<div class="muted" style="margin-bottom:8px">${esc(kg.evidence_chain_text || '')}</div>
-        ${table(['Class', 'Nodes'], classRows)}
-        ${statements ? `<details class="raw"><summary>${(kg.statements || []).length} graph statements</summary><ul>${statements}</ul></details>` : ''}
-        ${state.graph ? raw('Raw graph response', state.graph) : ''}`)}
-    </div>
-    ${raw('Raw decision payload', decision)}`;
-}
-
-/* --------------------------------------------------------------- payments */
-function viewPayments() {
-  const payments = (state.claim && state.claim.payments) || [];
-  const decision = state.claim ? state.claim.decision : null;
-  const defaultKey = `ui-${state.claimId}-payout-1`;
-  const ready = decision && decision.approval_status === 'AUTO_APPROVED';
-  const form = card('Initiate simulated payment', `
-    <div class="row" style="align-items:flex-end">
-      <label class="field">Idempotency key (min 8 chars)
-        <input id="pay-key" value="${esc(defaultKey)}">
-      </label>
-      <label class="field">Named approver
-        <input id="pay-approver" value="officer:j.mensah">
-      </label>
-      <button class="btn-primary" onclick="pay()">Pay claim</button>
-    </div>
-    <div class="notice" style="margin-top:12px">Payments above the human-approval limit need a named
-      approver. Reusing the same key returns the original transaction rather than paying twice.
-      ${ready ? '' : 'The claim needs a current AUTO_APPROVED decision first.'}</div>
-    ${decision ? `<div class="row" style="margin-top:10px"><span class="pill">decision ${esc(decision.decision_id)}</span>
-      ${badge(decision.approval_status)}<span class="pill">payout $${money(decision.net_payout_amount)}</span></div>` : ''}`);
-
-  const rows = payments.map((payment) => `<tr>
-      <td class="mono">${esc(payment.payment_id)}<div class="pill">${esc(payment.method)}</div></td>
-      <td>${badge(payment.status)}</td>
-      <td>$${money(payment.amount)} ${esc(payment.currency)}</td>
-      <td class="mono">${esc(payment.provider_reference)}<div class="pill">${esc(payment.idempotency_key)}</div></td>
-      <td>${esc(payment.approved_by || '—')}<div class="pill">${esc(when(payment.settled_at))}</div></td>
-      <td><button onclick="verify('${esc(payment.payment_id)}')">Verify</button></td></tr>`);
-
-  return `<div class="grid">${form}
-    ${card('Payment transactions', rows.length
-      ? table(['Payment', 'Status', 'Amount', 'Provider', 'Approved by', ''], rows)
-      : '<div class="empty">No payments for this claim yet.</div>')}
-    <div class="notice">Payment simulation only — no funds move. Provider references are synthetic.</div>
-  </div>`;
-}
-
-async function pay() {
-  const key = document.getElementById('pay-key').value.trim();
-  const approver = document.getElementById('pay-approver').value.trim() || null;
+async function payClaim() {
+  const key = prompt('Idempotency key (min 8 chars)', `ui-${state.claimId}-payout-1`);
+  if (!key) return;
   try {
     const payment = await api(`/claims/${encodeURIComponent(state.claimId)}/payments`, {
       method: 'POST',
-      body: JSON.stringify({
-        idempotency_key: key, approver_id: approver, actor: 'officer:claims-intake',
-      }),
+      body: JSON.stringify({ idempotency_key: key, approver_id: 'officer:j.mensah' }),
     });
-    toast(`${payment.status} · $${money(payment.amount)} · ${payment.provider_reference}`, 'ok');
-    state.audit = null;
-    await loadClaims(); await loadClaim();
-    await setTab('payments');
-  } catch (error) {
-    toast(error.message, 'error');
-  }
+    toast(`${payment.status} · $${money(payment.amount)} · ${payment.provider_reference}`);
+  } catch (error) { toast(error.message, true); }
+  await loadClaims();
+  state.claim = await api(`/claims/${encodeURIComponent(state.claimId)}`);
+  render();
 }
 
-async function verify(paymentId) {
+async function verifyPayment(paymentId) {
   try {
     const result = await api(`/payments/${encodeURIComponent(paymentId)}/verify`, { method: 'POST' });
-    const checks = (result.checks || []).map((check) =>
-      `<div class="row"><span class="pill">${esc(check.check)}</span>${badge(check.passed ? 'PASS' : 'FAIL')}</div>`).join('');
-    toast(`${result.verification_status} · audit chain ${result.audit_chain && result.audit_chain.intact ? 'intact' : 'broken'}`,
-      result.verification_status === 'VERIFIED' ? 'ok' : 'error');
-    document.getElementById('view').insertAdjacentHTML('afterbegin',
-      card('Payment verification', `${checks}${raw('Raw verification', result)}`));
-    state.audit = null;
-    await loadClaim();
-  } catch (error) {
-    toast(error.message, 'error');
-  }
+    toast(`${result.verification_status} · audit ${result.audit_chain && result.audit_chain.intact ? 'intact' : 'broken'}`);
+  } catch (error) { toast(error.message, true); }
+  state.claim = await api(`/claims/${encodeURIComponent(state.claimId)}`);
+  render();
 }
 
-/* ------------------------------------------------------------------ audit */
-function viewAudit() {
-  if (!state.audit) return '<div class="empty">Loading audit trail…</div>';
-  const events = state.audit.events || [];
-  const timeline = events.map((event) => `<div class="event">
-      <div class="when">${esc(when(event.occurred_at))}<div class="pill">${esc(event.event_id)}</div></div>
-      <div>
-        <div class="row"><strong>${esc(event.action)}</strong>${badge(event.actor.split(':')[0])}
-          <span class="pill">${esc(event.actor)}</span></div>
-        <div class="muted" style="font-size:12px">${esc(event.entity_type)} ${esc(event.entity_id)}</div>
-        <div class="pill" style="overflow-wrap:anywhere">hash ${esc(event.event_hash.slice(0, 24))}…</div>
-        <div class="pill" style="overflow-wrap:anywhere">prev ${event.previous_hash ? esc(event.previous_hash.slice(0, 24)) + '…' : 'genesis'}</div>
-        ${raw('payload', event.payload)}
-      </div></div>`).join('');
-  const status = state.audit.intact
-    ? `<span class="badge ok">intact</span>`
-    : `<span class="badge bad">broken at ${esc(state.audit.broken_at)}</span>`;
-  return `<div class="grid">
-    ${card('Hash-chain verification', `<div class="strip">
-      ${metric('Events checked', state.audit.events_checked)}
-      ${metric('Chain', state.audit.intact ? 'INTACT' : 'BROKEN', state.audit.intact ? 'ok' : 'bad')}</div>
-      <div class="row" style="margin-top:10px">${status}
-        <span class="pill">correlation ${esc(state.audit.correlation_id)}</span>
-        <span class="spacer"></span><button onclick="reloadAudit()">Re-check chain</button></div>
-      <div class="muted" style="margin-top:8px">Every event carries the previous event's hash, so an
-      edited or deleted event breaks every later link.</div>`) }
-    ${card('Events', `<div class="timeline">${timeline || '<div class="empty">No audit events.</div>'}</div>`)}
-    ${raw('Raw audit response', state.audit)}
+async function showAudit() {
+  try {
+    const audit = await api(`/claims/${encodeURIComponent(state.claimId)}/audit`);
+    document.getElementById('audit-slot').innerHTML = `<div class="card">
+      <h3>Audit chain <span class="hint">${audit.intact ? 'intact' : 'broken at ' + audit.broken_at}</span></h3>
+      <div class="row" style="margin-bottom:10px">${badge(audit.intact ? 'VERIFIED' : 'FAIL')}
+        <span class="faint">${audit.events_checked} events</span></div>
+      ${table(['Event', 'Actor', 'Action', 'Occurred'], audit.events.map((event) =>
+        [event.event_id, event.actor, event.action, String(event.occurred_at).replace('T', ' ').slice(0, 19)]))}</div>`;
+  } catch (error) { toast(error.message, true); }
+}
+
+/* -------------------------------------------------------------- discovery */
+async function renderDiscoveryPage(workspace, panel, content) {
+  panel.style.display = 'none';
+  if (!state.catalog) state.catalog = await api('/data');
+  if (!state.ontology) state.ontology = (await api('/ontology')).catalog;
+  if (!state.definitions) state.definitions = (await api('/semantic/definitions')).definitions;
+  await loadClaims().catch(() => {});
+  setCrumbs(['Chat', 'All Data'], 'Discovery');
+  const cards = [
+    ['Claims tables', state.catalog.table_count, 'Across parties, policy, claim, decision, payments and audit', 'data'],
+    ['Ontology classes', state.ontology.classes.length, 'T-Box classes with domain and range properties', 'terms'],
+    ['Semantic definitions', state.definitions.length, 'Certified formulas with versions and owners', 'terms'],
+    ['Decision rules', 15, 'Deterministic adjudication with evidence per rule', 'analysis'],
+  ];
+  content.innerHTML = `<div class="scroll">
+    <h1 class="page-title">${icon('discovery')}Discovery</h1>
+    <div class="subtitle">Everything this deployment knows: the claims database, its ontology and its semantic layer.</div>
+    <div class="infogrid" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))">
+      ${cards.map(([title, count, body, page]) => `<div class="card" style="cursor:pointer" onclick="go('${page}')">
+        <h3>${esc(title)}</h3><div style="font-size:30px;font-weight:700;letter-spacing:-.6px">${count}</div>
+        <div class="muted" style="font-size:12.5px">${esc(body)}</div></div>`).join('')}
+    </div>
+    <div class="card"><h3>Recent claims</h3>${table(['Claim', 'Policy', 'Status', 'Decision', 'Payout'],
+      state.claims.map((claim) => [claim.claim_id, claim.policy_number, badge(claim.status),
+        badge(claim.decision_status), `$${money(claim.net_payout_amount)}`]), 'No claims.')}</div>
+    <div class="card"><h3>Cause of death map</h3>${table(['ICD-10', 'Description', 'Class', 'Category'],
+      state.ontology.causes.map((cause) => [cause.code, cause.description, cause.class_iri, cause.category]))}</div>
   </div>`;
 }
 
-async function reloadAudit() {
+/* ------------------------------------------------------------ exploration */
+async function renderExplorationPage(workspace, panel, content) {
+  panel.style.display = 'none';
+  setCrumbs(['Chat', 'All Data', 'exploration'], 'SQL');
+  if (!state.explorationSql) state.explorationSql = 'SELECT claim_number, status, cause_code FROM insurance_claim LIMIT 50';
+  content.innerHTML = `<div class="scroll">
+    <h1 class="page-title">${icon('exploration')}Exploration</h1>
+    <div class="subtitle">Read-only SQL over the claims schema. One SELECT per run, up to 200 rows.</div>
+    <div class="card"><h3>Query</h3>
+      <textarea id="sql-input" style="width:100%;min-height:110px;border:1px solid var(--line-strong);border-radius:8px;padding:10px;font-family:ui-monospace,monospace;font-size:12.5px">${esc(state.explorationSql)}</textarea>
+      <div class="row" style="margin-top:10px"><button class="btn primary" onclick="runSql()">Run query</button>
+        <span class="faint">SELECT / WITH only · DDL and DML refused</span></div>
+      <div class="row" style="margin-top:10px">${[
+        ['Claims', 'SELECT claim_number, status, cause_code FROM insurance_claim'],
+        ['Decisions', 'SELECT claim_id, status, net_payout_amount, audit_reference FROM insurance_decision_result'],
+        ['Payments', 'SELECT payment_id, status, amount, provider_reference FROM insurance_payment_transaction'],
+        ['Audit', 'SELECT action, actor_id, occurred_at FROM insurance_audit_event ORDER BY occurred_at'],
+      ].map(([label, sql]) => `<button class="btn small" onclick="setSql(${JSON.stringify(sql).replaceAll('"', '&quot;')})">${label}</button>`).join('')}</div>
+    </div>
+    <div id="sql-result"></div>
+  </div>`;
+}
+
+function setSql(sql) {
+  state.explorationSql = sql;
+  render();
+}
+
+async function runSql() {
+  const sql = document.getElementById('sql-input').value;
+  state.explorationSql = sql;
+  const slot = document.getElementById('sql-result');
+  slot.innerHTML = `<div class="card"><span class="spinner"></span> Running…</div>`;
   try {
-    state.audit = await api(`/claims/${encodeURIComponent(state.claimId)}/audit`);
+    const result = await api('/sql', { method: 'POST', body: JSON.stringify({ sql }) });
+    slot.innerHTML = `<div class="card"><h3>Result <span class="hint">${result.row_count} rows · ${result.elapsed_ms} ms${result.truncated ? ' · truncated' : ''}</span></h3>
+      ${table(result.columns, result.rows)}</div>`;
+  } catch (error) {
+    slot.innerHTML = `<div class="card"><div class="empty" style="color:var(--red)">${esc(error.message)}</div></div>`;
+  }
+}
+
+/* -------------------------------------------------------------- analytics */
+async function renderAnalyticsPage(workspace, panel, content) {
+  panel.style.display = 'none';
+  setCrumbs(['Chat', 'All Data', 'analytics'], 'Analytics');
+  content.innerHTML = `<div class="scroll"><span class="spinner"></span> Loading metrics…</div>`;
+  try { state.analytics = await api('/analytics'); }
+  catch (error) { content.innerHTML = `<div class="scroll"><div class="empty">${esc(error.message)}</div></div>`; return; }
+  const data = state.analytics;
+  const settled = (data.payments.by_status.find((row) => row.status === 'SETTLED') || {});
+  content.innerHTML = `<div class="scroll">
+    <h1 class="page-title">${icon('analytics')}Analytics</h1>
+    <div class="kpi">
+      <div class="card"><div class="label">Claims</div><div class="value">${data.claims.total}</div></div>
+      <div class="card"><div class="label">Current decisions</div><div class="value">${data.decisions.total}</div></div>
+      <div class="card"><div class="label">Settled (simulated)</div><div class="value green">$${money(settled.amount || 0)}</div></div>
+      <div class="card"><div class="label">Rule pass rate</div><div class="value">${data.rules.pass_rate == null ? '—' : data.rules.pass_rate + '%'}</div></div>
+      <div class="card"><div class="label">Audit events</div><div class="value">${data.audit_events}</div></div>
+    </div>
+    <div class="split">
+      <div class="card"><h3>Claims by status</h3>${table(['Status', 'Count'], data.claims.by_status.map((row) => [badge(row.status), row.count]))}</div>
+      <div class="card"><h3>Decisions by outcome</h3>${table(['Outcome', 'Count', 'Payout'],
+        data.decisions.by_status.map((row) => [badge(row.status), row.count, `$${money(row.payout)}`]))}</div>
+    </div>
+    <div class="card"><h3>Payments</h3>${table(['Status', 'Count', 'Amount'],
+      data.payments.by_status.map((row) => [badge(row.status), row.count, `$${money(row.amount)}`]), 'No payments yet.')}</div>
+    <div class="card"><h3>Rules</h3>${table(['Measure', 'Value'], [
+      ['Catalog rules', data.rules.catalog], ['Rule outcomes recorded', data.rules.outcomes], ['Failures', data.rules.failed]])}</div>
+  </div>`;
+}
+
+/* --------------------------------------------------------------- settings */
+async function renderSettingsPage(workspace, panel, content) {
+  panel.style.display = 'none';
+  setCrumbs(['Chat', 'All Data', 'settings'], 'Settings');
+  try { state.health = await api('/health'); } catch (_) { /* shown below */ }
+  const health = state.health || {};
+  content.innerHTML = `<div class="scroll">
+    <h1 class="page-title">${icon('settings')}Settings</h1>
+    <div class="card"><h3>Engine</h3><div class="infogrid">
+      <div class="infobox"><div class="label">Storage</div><div class="value">${esc(health.storage)}</div></div>
+      <div class="infobox"><div class="label">Version</div><div class="value">${esc(health.engine_version)}</div></div>
+      <div class="infobox"><div class="label">Currency</div><div class="value">${esc(health.currency)}</div></div>
+      <div class="infobox"><div class="label">Auto-approval limit</div><div class="value">$${money(health.auto_approval_limit)}</div></div>
+      <div class="infobox"><div class="label">Human approval above</div><div class="value">$${money(health.payment_human_approval_limit)}</div></div>
+    </div>
+    <div class="muted" style="margin-top:12px">${esc(health.payment_simulation || 'Simulated payments only.')}</div></div>
+    <div class="card"><h3>Data</h3><div class="row">
+      <button class="btn" onclick="resetData(false)">Seed missing catalogs</button>
+      <button class="btn" onclick="resetData(true)">Reset sample data</button>
+      <span class="spacer"></span><a class="btn" href="/docs" target="_blank" style="text-decoration:none">OpenAPI</a>
+      <a class="btn" href="/openapi.json" target="_blank" style="text-decoration:none">Schema</a>
+    </div>
+    <div class="muted" style="margin-top:10px">Resetting drops every decision, payment and audit event and reseeds the two sample claims.</div></div>
+  </div>`;
+}
+
+async function resetData(full) {
+  if (full && !confirm('Drop all claims data and reseed?')) return;
+  try {
+    await api(full ? '/demo/reset' : '/demo/bootstrap', { method: 'POST' });
+    state.claims = []; state.claim = null; state.analytics = null; state.catalog = null;
+    toast(full ? 'Sample data reset' : 'Catalogs bootstrapped');
     render();
-  } catch (error) { toast(error.message, 'error'); }
+  } catch (error) { toast(error.message, true); }
 }
 
-/* --------------------------------------------------------------- ontology */
-function viewOntology() {
-  if (!state.ontology) return '<div class="empty">Loading ontology…</div>';
-  const catalog = state.ontology.catalog;
-  const counts = state.ontology.materialized.counts;
-  const classRows = catalog.classes.map((item) => `<tr>
-      <td class="mono">${esc(item.name)}</td>
-      <td>${esc(item.description)}<div class="pill">${esc((item.parents || []).join(', ') || 'root')}</div></td>
-      <td class="mono" style="font-size:11.5px">${esc(item.iri)}</td></tr>`);
-  const propRows = catalog.properties.map((item) => `<tr>
-      <td class="mono">${esc(item.name)}</td>
-      <td>${esc(item.domain.replace('lio:', ''))} → ${esc(item.range.replace('lio:', ''))}</td>
-      <td>${esc(item.cardinality)}</td><td>${esc(item.description)}</td></tr>`);
-  const constraintRows = catalog.constraints.map((item) => `<tr>
-      <td class="mono">${esc(item.code)}</td><td>${esc(item.statement)}</td><td>${esc(item.consequence)}</td></tr>`);
-  const causeRows = catalog.causes.map((item) => `<tr>
-      <td class="mono">${esc(item.code)}</td><td>${esc(item.description)}</td>
-      <td class="mono">${esc(item.class_iri.replace('lio:', ''))}</td><td>${esc(item.category)}</td></tr>`);
-  const exclusionRows = catalog.exclusions.map((item) => `<tr>
-      <td class="mono">${esc(item.code)}</td><td>${esc(item.name)}</td>
-      <td class="mono">${esc(item.excludes_class.replace('lio:', ''))}</td>
-      <td>${item.contestability_only ? 'contestability window only' : 'always'}</td></tr>`);
-  return `<div class="grid cols-3">
-      ${card('T-Box', `<div class="strip">${metric('Classes', counts.classes)}
-        ${metric('Properties', counts.properties)}${metric('Constraints', catalog.constraints.length)}</div>
-        <div class="muted" style="margin-top:8px">namespace ${esc(catalog.namespace)} · v${esc(catalog.version)}</div>`) }
-      ${card('Cause mapping', `<div class="strip">${metric('ICD-10 codes', catalog.causes.length)}</div>
-        <div class="muted" style="margin-top:8px">Codes resolve to ontology classes by inference, not by if/else.</div>`) }
-      ${card('Exclusions', `<div class="strip">${metric('Products', catalog.exclusions.length)}</div>
-        <div class="muted" style="margin-top:8px">Exclusions apply only to matching classes, some only inside contestability.</div>`) }
-    </div>
-    <div class="grid" style="margin-top:14px">
-      ${card('Classes', table(['Class', 'Meaning', 'IRI'], classRows))}
-      ${card('Object properties', table(['Property', 'Domain → Range', 'Cardinality', 'Meaning'], propRows))}
-      ${card('Constraints', table(['Code', 'Statement', 'Consequence if violated'], constraintRows))}
-      <div class="grid cols-2">
-        ${card('Cause of death map', table(['ICD-10', 'Description', 'Class', 'Category'], causeRows))}
-        ${card('Policy exclusions', table(['Code', 'Name', 'Excludes', 'Scope'], exclusionRows))}
-      </div>
-    </div>
-    ${raw('Raw ontology response', state.ontology)}`;
-}
-
-/* -------------------------------------------------------------- semantics */
-function viewSemantics() {
-  if (!state.definitions) return '<div class="empty">Loading semantic layer…</div>';
-  const rows = state.definitions.map((definition) => `<tr>
-      <td><strong>${esc(definition.display_name)}</strong><div class="pill">${esc(definition.name)}</div></td>
-      <td>${esc(definition.definition_kind)}</td>
-      <td class="mono" style="font-size:11.5px">${esc(definition.formula)}</td>
-      <td>${esc(definition.unit)}</td>
-      <td>${definition.is_certified ? '<span class="badge ok">certified</span>' : '<span class="badge warn">draft</span>'}
-        <div class="pill">v${esc(definition.version)}</div></td></tr>`);
-  const values = state.policySemantics ? state.policySemantics.values : [];
-  const valueRows = values.map((value) => `<tr>
-      <td>${esc(value.display_name)}<div class="pill">${esc(value.name)}</div></td>
-      <td><strong>${esc(value.display_value)}</strong></td>
-      <td>${esc(value.unit)}</td>
-      <td class="mono" style="font-size:11px">${esc(value.formula)}</td>
-      <td>${raw('inputs', value.inputs || {})}</td></tr>`);
-  return `<div class="grid">
-    ${card('Definitions', table(['Definition', 'Kind', 'Formula', 'Unit', 'Governance'], rows), `${state.definitions.length} certified`)}
-    ${state.policySemantics ? card(
-      `Evaluated for ${state.policySemantics.policy_id} (claim ${state.policySemantics.claim_id})`,
-      table(['Definition', 'Value', 'Unit', 'Formula', 'Inputs'], valueRows),
-      `${state.policySemantics.definitions_evaluated} values`) : ''}
-    ${raw('Raw definitions', state.definitions)}
-    ${state.policySemantics ? raw('Raw evaluated values', state.policySemantics) : ''}
-  </div>`;
-}
-
-/* --------------------------------------------------------------- scenario */
-function viewScenario() {
-  const lines = state.scenario.map((entry) => `<div class="scenario-line">
-      <span class="verdict">${badge(entry.status)}</span>
-      <span class="text">${esc(entry.text)}</span>
-      <span class="pill">${esc(entry.ms)} ms</span></div>`).join('');
-  return `<div class="grid">
-    ${card('End-to-end scenario', `<div class="row" style="margin-bottom:10px">
-        <button class="btn-primary" onclick="runScenario()">Run: reset → decide → pay → verify → refuse</button>
-        <span class="spacer"></span><span class="pill">simulated payments only</span></div>
-      <div class="muted">Resets the sample data, decides CLM-2001, pays it, verifies the payment and the
-      audit chain, then decides the restricted CLM-2002 and confirms the payment refusal.</div>
-      <div style="margin-top:12px">${lines || '<div class="empty">Not run yet in this session.</div>'}</div>`) }
-    ${raw('Raw scenario state', state.scenario)}
-  </div>`;
-}
-
-async function runScenario() {
-  state.scenario = [];
-  const log = (status, text, started) => {
-    state.scenario.push({ status, text, ms: Math.round(performance.now() - started) });
-    if (state.tab === 'scenario') render();
-  };
-  const attempt = async (label, action, verify) => {
-    const started = performance.now();
-    try {
-      const result = await action();
-      const verdict = verify ? verify(result) : 'PASS';
-      log(verdict, label, started);
-      return result;
-    } catch (error) {
-      log('FAIL', `${label} — ${error.message}`, started);
-      return null;
-    }
-  };
-
-  await setTab('scenario');
-  try {
-    await attempt('Reset sample data', () => api('/demo/reset', { method: 'POST' }));
-    await loadClaims();
-    state.claimId = 'CLM-2001'; state.claim = null; state.graph = null; state.audit = null;
-    await attempt('Load CLM-2001', () => loadClaim());
-    const decision = await attempt('Decide CLM-2001', () => api('/claims/CLM-2001/decision', {
-      method: 'POST', body: JSON.stringify({ actor: 'officer:j.mensah' }),
-    }), (result) => result.approval_status === 'AUTO_APPROVED' ? 'PASS' : 'FAIL');
-    if (decision) {
-      log(decision.approval_status === 'AUTO_APPROVED' ? 'PASS' : 'FAIL',
-        `Outcome ${decision.approval_status} · $${money(decision.net_payout_amount)} · ` +
-        `${decision.decision_rules_applied.filter((rule) => rule.status === 'PASS').length}/${decision.decision_rules_applied.length} rules · ` +
-        `audit ${decision.audit_reference}`, performance.now());
-    }
-    const body = { idempotency_key: 'ui-claim-CLM-2001-payout-1', approver_id: 'officer:j.mensah' };
-    const payment = await attempt('Pay CLM-2001 (simulated ACH)', () =>
-      api('/claims/CLM-2001/payments', { method: 'POST', body: JSON.stringify(body) }));
-    await attempt('Replay same idempotency key', () =>
-      api('/claims/CLM-2001/payments', { method: 'POST', body: JSON.stringify(body) }),
-      (result) => result.idempotent_replay ? 'PASS' : 'FAIL');
-    if (payment) {
-      await attempt('Verify payment against decision and audit chain', () =>
-        api(`/payments/${payment.payment_id}/verify`, { method: 'POST' }),
-        (result) => result.verification_status === 'VERIFIED' ? 'PASS' : 'FAIL');
-    }
-    await attempt('Verify audit hash chain', () => api('/claims/CLM-2001/audit'),
-      (result) => result.intact ? 'PASS' : 'FAIL');
-    const manual = await attempt('Decide CLM-2002 (court order)', () =>
-      api('/claims/CLM-2002/decision', { method: 'POST', body: '{}' }),
-      (result) => result.approval_status === 'MANUAL_REVIEW' ? 'PASS' : 'FAIL');
-    try {
-      const started = performance.now();
-      await api('/claims/CLM-2002/payments', {
-        method: 'POST', body: JSON.stringify({ idempotency_key: 'ui-claim-CLM-2002-payout-1', approver_id: 'officer:j.mensah' }),
-      });
-      log('FAIL', 'Restricted claim payment should have been refused', started);
-    } catch (error) {
-      log(error.message.includes('409') ? 'PASS' : 'FAIL',
-        `Restricted claim payment refused — ${error.message}`, performance.now());
-    }
-    await loadClaims(); await loadClaim();
-    toast('Scenario complete', 'ok');
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-}
-
-/* --------------------------------------------------------------- lifecycle */
-async function resetData() {
-  if (!confirm('Reset the sample data? This drops every decision, payment and audit event.')) return;
-  try {
-    await api('/demo/reset', { method: 'POST' });
-    state.claim = null; state.graph = null; state.audit = null; state.policySemantics = null;
-    state.scenario = [];
-    await loadClaims(); await loadClaim();
-    await setTab(state.tab);
-    toast('Sample data reset', 'ok');
-  } catch (error) {
-    toast(error.message, 'error');
-  }
-}
-
-boot();
+/* --------------------------------------------------------------- liftoff */
+(async function boot() {
+  try { state.health = await api('/health'); } catch (_) { /* surfaces in settings */ }
+  try { state.catalog = await api('/data'); } catch (_) { state.catalog = null; }
+  if (!location.hash) location.hash = '#/chat';
+  route();
+  window.addEventListener('hashchange', route);
+})();
 </script>
 </body>
 </html>

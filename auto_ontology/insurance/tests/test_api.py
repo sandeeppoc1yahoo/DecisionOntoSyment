@@ -40,8 +40,61 @@ def test_claims_console_is_served(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "Life Insurance Claims Decision AI" in response.text
+    assert "Decision Ontology" in response.text
+    assert 'id="rail"' in response.text
     assert client.get("/ui").status_code == 200
+
+
+def test_data_catalog_lists_every_table(client: TestClient) -> None:
+    body = client.get("/api/insurance/data").json()
+    assert body["table_count"] == 23
+    assert body["database"] == "insurance"
+    names = {table["name"] for table in body["tables"]}
+    assert {"insurance_claim", "insurance_decision_result"} <= names
+    assert body["layers"]["Audit"] == ["insurance_audit_event"]
+
+
+def test_table_detail_has_columns_and_sample(client: TestClient) -> None:
+    body = client.get("/api/insurance/data/insurance_claim").json()
+    assert body["row_count"] >= 2
+    assert {"claim_number", "policy_id", "status"} <= {
+        column["name"] for column in body["columns"]
+    }
+    assert body["sample"]["columns"]
+    assert client.get("/api/insurance/data/not_a_table").status_code == 404
+
+
+def test_sql_endpoint_is_read_only(client: TestClient) -> None:
+    refused = client.post(
+        "/api/insurance/sql", json={"sql": "DELETE FROM insurance_claim"}
+    )
+    assert refused.status_code == 400
+    allowed = client.post(
+        "/api/insurance/sql",
+        json={"sql": "SELECT count(*) AS n FROM insurance_claim"},
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["rows"][0][0] >= 2
+
+
+def test_ask_answers_from_the_database(client: TestClient) -> None:
+    client.post("/api/insurance/claims/CLM-2001/decision", json={})
+    body = client.post(
+        "/api/insurance/ask", json={"question": "Why was CLM-2001 approved?"}
+    ).json()
+    assert body["intent"] == "claim"
+    assert "AUTO_APPROVED" in body["answer"]
+    assert "rules_applied" in (body["sql"] or "")
+
+
+def test_analytics_counts(client: TestClient) -> None:
+    client.post("/api/insurance/claims/CLM-2001/decision", json={})
+    body = client.get("/api/insurance/analytics").json()
+    assert body["claims"]["total"] == 2
+    assert body["rules"]["catalog"] == 15
+    assert body["rules"]["outcomes"] == 15
+    assert body["rules"]["failed"] == 0
+    assert body["decisions"]["by_status"][0]["status"] == "AUTO_APPROVED"
 
 
 def test_ontology_catalog(client: TestClient) -> None:

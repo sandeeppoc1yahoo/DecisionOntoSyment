@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from auto_ontology.insurance import __version__
+from auto_ontology.insurance.api.explorer import router as explorer_router
 from auto_ontology.insurance.api.router import router as insurance_router
 from auto_ontology.insurance.bootstrap import bootstrap
 from auto_ontology.insurance.db import create_schema, dispose_engine
@@ -73,6 +74,9 @@ def create_insurance_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(insurance_router, prefix="/api/insurance", tags=["insurance"])
+    app.include_router(
+        explorer_router, prefix="/api/insurance", tags=["insurance-explorer"]
+    )
 
     # Served on the standalone app only. The platform mount includes the router,
     # not this app, so `/` stays the platform's own frontend there.
