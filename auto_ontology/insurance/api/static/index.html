@@ -1,0 +1,775 @@
+<!doctype html>
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES.
+All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Life Insurance Claims Decision AI</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0e14;
+    --panel: #121923;
+    --panel-2: #0e141c;
+    --line: #1f2b3a;
+    --text: #e6edf3;
+    --muted: #8b98a9;
+    --accent: #2dd4bf;
+    --blue: #60a5fa;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    padding: 14px 24px; background: rgba(10, 14, 20, .92);
+    border-bottom: 1px solid var(--line); backdrop-filter: blur(8px);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #134e4a, #1e3a8a); color: var(--accent);
+    font-weight: 700; font-size: 15px; border: 1px solid #21465a;
+  }
+  h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  .sub { font-size: 12px; color: var(--muted); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--muted);
+    background: var(--panel-2);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(52, 211, 153, .6); }
+  .dot.bad { background: var(--bad); }
+  button {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px;
+    cursor: pointer; transition: border-color .15s, background .15s, transform .05s;
+  }
+  button:hover { border-color: #2f4257; background: #16202c; }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: #0f3d3a; border-color: #1d6b62; color: #b8fff5; }
+  .btn-primary:hover { background: #12504b; }
+  .btn-ghost { background: transparent; }
+  nav {
+    display: flex; gap: 4px; padding: 10px 24px 0; overflow-x: auto;
+    border-bottom: 1px solid var(--line); background: var(--panel-2);
+  }
+  nav button {
+    border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0;
+    background: transparent; color: var(--muted); padding: 9px 14px;
+  }
+  nav button.active { background: var(--bg); color: var(--text); border-color: var(--line); }
+  nav button:hover { color: var(--text); }
+  main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
+  .grid { display: grid; gap: 14px; }
+  .cols-2 { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
+  .cols-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .9px; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .card h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 8px; }
+  .metric { display: flex; flex-direction: column; gap: 2px; }
+  .metric .label { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
+  .metric .value { font-size: 21px; font-weight: 650; letter-spacing: -.3px; }
+  .metric .value.ok { color: var(--ok); } .metric .value.warn { color: var(--warn); } .metric .value.bad { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(96, 165, 250, .04); }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px;
+    font-weight: 600; letter-spacing: .3px; border: 1px solid transparent; white-space: nowrap;
+  }
+  .badge.ok { background: rgba(52, 211, 153, .12); color: var(--ok); border-color: rgba(52, 211, 153, .35); }
+  .badge.warn { background: rgba(251, 191, 36, .12); color: var(--warn); border-color: rgba(251, 191, 36, .35); }
+  .badge.bad { background: rgba(248, 113, 113, .12); color: var(--bad); border-color: rgba(248, 113, 113, .35); }
+  .badge.info { background: rgba(96, 165, 250, .12); color: var(--blue); border-color: rgba(96, 165, 250, .35); }
+  .badge.neutral { background: rgba(139, 152, 169, .12); color: var(--muted); border-color: rgba(139, 152, 169, .3); }
+  .kv { display: grid; grid-template-columns: minmax(120px, 38%) 1fr; gap: 5px 14px; }
+  .kv dt { color: var(--muted); font-size: 12px; }
+  .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .muted { color: var(--muted); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .spacer { flex: 1; }
+  input, select {
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 180px;
+  }
+  input:focus, select:focus { outline: 1px solid #2b6f66; border-color: #2b6f66; }
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .notice {
+    border: 1px solid rgba(251, 191, 36, .3); background: rgba(251, 191, 36, .07);
+    color: #fde68a; padding: 9px 12px; border-radius: 8px; font-size: 12.5px;
+  }
+  .notice.info { border-color: rgba(96, 165, 250, .3); background: rgba(96, 165, 250, .07); color: #bfdbfe; }
+  details.raw { margin-top: 14px; }
+  details.raw summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  pre {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; overflow: auto; max-height: 360px; font-size: 12px; margin: 10px 0 0;
+  }
+  .empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); }
+  #toast {
+    position: fixed; right: 20px; bottom: 20px; z-index: 50; display: flex;
+    flex-direction: column; gap: 8px; max-width: min(520px, 90vw);
+  }
+  .toast {
+    padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: #131c27; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); font-size: 13px;
+  }
+  .toast.error { border-color: rgba(248, 113, 113, .5); color: #fecaca; }
+  .toast.ok { border-color: rgba(52, 211, 153, .5); color: #bbf7d0; }
+  .timeline { display: flex; flex-direction: column; gap: 10px; }
+  .event { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding-left: 12px; border-left: 2px solid var(--line); }
+  .event .when { color: var(--muted); font-size: 12px; }
+  .scenario-line { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .scenario-line:last-child { border-bottom: none; }
+  .scenario-line .verdict { width: 54px; flex: none; }
+  .scenario-line .text { flex: 1; overflow-wrap: anywhere; }
+  .pill { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); }
+  .strip { display: flex; gap: 18px; flex-wrap: wrap; }
+  @media (max-width: 640px) { .event { grid-template-columns: 1fr; } header { padding: 12px 14px; } main, nav { padding-left: 14px; padding-right: 14px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">AI</div>
+    <div>
+      <h1>Life Insurance Claims Decision AI</h1>
+      <div class="sub">Semantic layer · ontology · knowledge graph · deterministic decision · simulated payment</div>
+    </div>
+  </div>
+  <span class="chip" id="health"><span class="dot"></span><span>connecting…</span></span>
+  <button class="btn-ghost" onclick="resetData()">Reset sample data</button>
+  <button class="btn-primary" onclick="setTab('scenario').then(runScenario)">Run full scenario</button>
+</header>
+
+<nav id="tabs">
+  <button data-tab="claim" class="active" onclick="setTab('claim')">Claim</button>
+  <button data-tab="decision" onclick="setTab('decision')">Decision</button>
+  <button data-tab="payments" onclick="setTab('payments')">Payments</button>
+  <button data-tab="audit" onclick="setTab('audit')">Audit trail</button>
+  <button data-tab="ontology" onclick="setTab('ontology')">Ontology</button>
+  <button data-tab="semantics" onclick="setTab('semantics')">Semantic layer</button>
+  <button data-tab="scenario" onclick="setTab('scenario')">Scenario runner</button>
+</nav>
+
+<main>
+  <div id="claim-bar" class="row" style="margin-bottom:14px"></div>
+  <section id="view"><div class="empty">Loading…</div></section>
+</main>
+<div id="toast"></div>
+
+<script>
+const API = '/api/insurance';
+const state = {
+  health: null, claims: [], claimId: null, claim: null,
+  graph: null, audit: null, ontology: null, definitions: null, rules: null,
+  policySemantics: null, tab: 'claim', scenario: [],
+};
+
+/* ---------------------------------------------------------------- helpers */
+async function api(path, options = {}) {
+  const response = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  let body = null;
+  try { body = await response.json(); } catch (_) { body = null; }
+  if (!response.ok) {
+    const detail = body && body.detail ? body.detail : body;
+    const text = typeof detail === 'string' ? detail : JSON.stringify(detail);
+    throw new Error(`HTTP ${response.status} — ${text}`);
+  }
+  return body;
+}
+
+function esc(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function money(value) {
+  const number = Number(String(value ?? '').replaceAll(',', ''));
+  if (!Number.isFinite(number)) return String(value ?? '—');
+  return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function toast(message, kind = '') {
+  const node = document.createElement('div');
+  node.className = `toast ${kind}`;
+  node.textContent = message;
+  document.getElementById('toast').appendChild(node);
+  setTimeout(() => node.remove(), 7000);
+}
+
+function badge(status) {
+  const value = String(status ?? '—');
+  const ok = ['PASS', 'SATISFIED', 'VERIFIED', 'SETTLED', 'AUTO_APPROVED', 'PAID', 'IN_FORCE'];
+  const warn = ['MANUAL_REVIEW', 'UNDER_REVIEW', 'REFER', 'REQUIRES_APPROVAL', 'PENDING'];
+  const bad = ['FAIL', 'VIOLATED', 'REJECTED', 'DECLINED', 'FAILED'];
+  let cls = 'neutral';
+  if (ok.includes(value)) cls = 'ok';
+  else if (warn.includes(value)) cls = 'warn';
+  else if (bad.includes(value)) cls = 'bad';
+  else if (['INFO', 'EVALUATED'].includes(value)) cls = 'info';
+  return `<span class="badge ${cls}">${esc(value)}</span>`;
+}
+
+function metric(label, value, cls = '') {
+  return `<div class="metric"><span class="label">${esc(label)}</span>
+    <span class="value ${cls}">${esc(value)}</span></div>`;
+}
+
+function card(title, body, hint = '') {
+  return `<div class="card"><h2>${esc(title)}${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</h2>${body}</div>`;
+}
+
+function table(headers, rows) {
+  if (!rows.length) return '<div class="empty">No rows.</div>';
+  return `<div style="overflow:auto"><table><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.join('')}</tbody></table></div>`;
+}
+
+function raw(label, value) {
+  return `<details class="raw"><summary>${esc(label)}</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
+}
+
+function when(iso) {
+  if (!iso) return '—';
+  return String(iso).replace('T', ' ').slice(0, 19);
+}
+
+/* ------------------------------------------------------------------- boot */
+async function boot() {
+  try {
+    state.health = await api('/health');
+    document.getElementById('health').innerHTML =
+      `<span class="dot ok"></span><span>${esc(state.health.storage)} · v${esc(state.health.engine_version)}</span>`;
+  } catch (error) {
+    document.getElementById('health').innerHTML = `<span class="dot bad"></span><span>API unreachable</span>`;
+    toast(error.message, 'error');
+    document.getElementById('view').innerHTML =
+      `<div class="empty">Cannot reach the claims API.<br>Start it with <code>python -m auto_ontology.insurance.api</code>.</div>`;
+    return;
+  }
+  await loadClaims();
+  await setTab('claim');
+}
+
+async function loadClaims() {
+  const body = await api('/claims');
+  state.claims = body.claims || [];
+  if (!state.claimId && state.claims.length) state.claimId = state.claims[0].claim_id;
+  renderClaimBar();
+}
+
+function renderClaimBar() {
+  const bar = document.getElementById('claim-bar');
+  if (!state.claims.length) { bar.innerHTML = ''; return; }
+  const options = state.claims.map((claim) =>
+    `<option value="${esc(claim.claim_id)}" ${claim.claim_id === state.claimId ? 'selected' : ''}>
+      ${esc(claim.claim_id)} · ${esc(claim.policy_number)} · ${esc(claim.status)}
+    </option>`).join('');
+  const current = state.claims.find((claim) => claim.claim_id === state.claimId);
+  bar.innerHTML = `
+    <label class="field">Claim on record
+      <select onchange="selectClaim(this.value)">${options}</select>
+    </label>
+    <span class="chip">decision ${current ? badge(current.decision_status) : '—'}</span>
+    <span class="chip">payout $${money(current ? current.net_payout_amount : '—')}</span>
+    <span class="spacer"></span>
+    <span class="pill">SQLite/Postgres · payments simulated</span>`;
+}
+
+async function selectClaim(claimId) {
+  state.claimId = claimId;
+  state.claim = null; state.graph = null; state.audit = null; state.policySemantics = null;
+  await loadClaim();
+  renderClaimBar();
+  render();
+}
+
+async function loadClaim() {
+  if (!state.claimId) return;
+  state.claim = await api(`/claims/${encodeURIComponent(state.claimId)}`);
+}
+
+/* ------------------------------------------------------------------- tabs */
+async function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('#tabs button').forEach((button) => {
+    button.classList.toggle('active', button.dataset.tab === tab);
+  });
+  try {
+    if (!state.claim) await loadClaim();
+    if (tab === 'decision' && !state.graph) {
+      try { state.graph = await api(`/claims/${encodeURIComponent(state.claimId)}/graph`); }
+      catch (error) { state.graph = null; }
+    }
+    if (tab === 'audit' && !state.audit) {
+      state.audit = await api(`/claims/${encodeURIComponent(state.claimId)}/audit`);
+    }
+    if (tab === 'ontology') {
+      if (!state.ontology) state.ontology = await api('/ontology');
+      if (!state.rules) state.rules = (await api('/rules')).rules;
+    }
+    if (tab === 'semantics') {
+      if (!state.definitions) state.definitions = (await api('/semantic/definitions')).definitions;
+      const policyId = state.claim && state.claim.policy ? state.claim.policy.policy_id : null;
+      if (policyId && !state.policySemantics) {
+        state.policySemantics = await api(`/policies/${encodeURIComponent(policyId)}/semantics`);
+      }
+    }
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+  render();
+}
+
+function render() {
+  const views = {
+    claim: viewClaim, decision: viewDecision, payments: viewPayments, audit: viewAudit,
+    ontology: viewOntology, semantics: viewSemantics, scenario: viewScenario,
+  };
+  try {
+    document.getElementById('view').innerHTML = (views[state.tab] || viewClaim)();
+  } catch (error) {
+    document.getElementById('view').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+  }
+}
+
+/* ------------------------------------------------------------------ claim */
+function viewClaim() {
+  if (!state.claim) return '<div class="empty">No claim selected.</div>';
+  const { claim, policy, insured, beneficiaries, death_certificate, evidence, payments } = state.claim;
+  const identity = card('Insured & claim', `<dl class="kv">
+      <dt>Claim</dt><dd class="mono">${esc(claim.claim_id)} <span class="muted">(${esc(claim.claim_number)})</span></dd>
+      <dt>Status</dt><dd>${badge(claim.status)}</dd>
+      <dt>Date of death</dt><dd>${esc(when(claim.date_of_death))}</dd>
+      <dt>Cause</dt><dd class="mono">${esc(claim.cause_code)}</dd>
+      <dt>Category</dt><dd>${esc(claim.cause_of_death ? claim.cause_of_death.category : '—')}</dd>
+      <dt>Submitted</dt><dd>${esc(when(claim.submitted_at))} · ${esc(claim.channel)}</dd>
+      <dt>Insured</dt><dd>${esc(insured.name)} <span class="muted">(${esc(insured.insured_person_id)})</span></dd>
+    </dl>`);
+  const policyCard = card('Policy', `<dl class="kv">
+      <dt>Number</dt><dd class="mono">${esc(policy.policy_number)}</dd>
+      <dt>Product</dt><dd>${esc(policy.product)}</dd>
+      <dt>Status</dt><dd>${badge(policy.status)}</dd>
+      <dt>In force</dt><dd>${esc(policy.effective_date.slice(0, 10))} → ${esc(policy.expiry_date.slice(0, 10))}</dd>
+      <dt>Face amount</dt><dd>$${money(policy.face_amount)}</dd>
+      <dt>Contestability</dt><dd>${esc(policy.contestability_days)} days</dd>
+    </dl>`);
+  const beneficiaryRows = beneficiaries.map((person) => `<tr>
+      <td class="mono">${esc(person.beneficiary_id)}</td><td>${esc(person.name)}</td>
+      <td>${esc(person.relationship)}</td><td>${esc(person.designation_type)}</td>
+      <td>${esc(person.allocation_percent)}%</td><td>${badge(person.verification_status)}</td></tr>`);
+  const evidenceRows = evidence.map((item) => `<tr>
+      <td>${esc(item.evidence_type)}</td><td class="mono" style="max-width:280px;overflow-wrap:anywhere">${esc(item.document_ref)}</td>
+      <td>${badge(item.status)}</td><td>${esc(item.verified_by)}</td></tr>`);
+  const paymentRows = (payments || []).map((payment) => `<tr>
+      <td class="mono">${esc(payment.payment_id)}</td><td>${badge(payment.status)}</td>
+      <td>$${money(payment.amount)}</td><td class="mono">${esc(payment.provider_reference)}</td>
+      <td>${payment.idempotent_replay ? '<span class="badge info">replay</span>' : '—'}</td></tr>`);
+  return `<div class="grid cols-2">
+    ${identity}${policyCard}
+  </div>
+  <div class="grid" style="margin-top:14px">
+    ${card('Beneficiaries', table(['ID', 'Name', 'Relationship', 'Designation', 'Allocation', 'Verified'], beneficiaryRows))}
+    ${card('Evidence', table(['Type', 'Document', 'Status', 'Verified by'], evidenceRows))}
+    ${card('Payments', paymentRows.length ? table(['Payment', 'Status', 'Amount', 'Provider reference', ''], paymentRows)
+      : '<div class="empty">No payment yet — approve the claim, then use the Payments tab.</div>')}
+    ${raw('Raw claim response', state.claim)}
+  </div>`;
+}
+
+async function decide() {
+  const claimId = state.claimId;
+  try {
+    const decision = await api(`/claims/${encodeURIComponent(claimId)}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({ actor: 'officer:j.mensah' }),
+    });
+    toast(`${claimId}: ${decision.approval_status} · $${decision.net_payout_amount}`, 'ok');
+    state.graph = null; state.audit = null;
+    await loadClaims(); await loadClaim();
+    state.tab = 'decision';
+    await setTab('decision');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+/* --------------------------------------------------------------- decision */
+function viewDecision() {
+  const decision = state.claim ? state.claim.decision : null;
+  if (!decision) {
+    return `<div class="empty" style="display:grid;gap:14px;justify-items:center">
+      <div>This claim has not been decided yet.</div>
+      <button class="btn-primary" onclick="decide()">Run the decision engine on ${esc(state.claimId)}</button>
+    </div>`;
+  }
+  const rules = decision.decision_rules_applied || [];
+  const passed = rules.filter((rule) => rule.status === 'PASS').length;
+  const constraints = decision.ontology_validation_results || [];
+  const satisfied = constraints.filter((item) => item.status === 'SATISFIED').length;
+  const values = (decision.semantic_calculations && decision.semantic_calculations.values) || [];
+  const kg = decision.knowledge_graph_evidence || {};
+
+  const summary = `<div class="grid cols-3">
+    ${card('Outcome', `<div class="strip">${metric('Status', decision.approval_status,
+      decision.approval_status === 'AUTO_APPROVED' ? 'ok' : 'warn')}
+      ${metric('Net payout', `$${money(decision.net_payout_amount)}`, decision.net_payout_amount === '0.00' ? 'warn' : 'ok')}
+      ${metric('Confidence', `${Math.round(decision.confidence_score * 100)}%`)}</div>
+      <div class="notice info" style="margin-top:12px">${esc(decision.decision_explanation)}</div>
+      <div class="row" style="margin-top:12px"><span class="pill">audit ${esc(decision.audit_reference)}</span>
+      <span class="pill">decision ${esc(decision.decision_id)}</span>
+      <span class="spacer"></span><button onclick="decide()">Re-run decision</button></div>`) }
+    ${card('Rules', `<div class="strip">${metric('Passed', `${passed}/${rules.length}`, passed === rules.length ? 'ok' : 'bad')}</div>
+      <div class="muted" style="margin-top:8px">${esc(decision.decision_path)}</div>`) }
+    ${card('Knowledge graph', `<div class="strip">${metric('Nodes', kg.node_count)}
+      ${metric('Edges', kg.edge_count)}
+      ${metric('Violations', (kg.ontology_violations || []).length, (kg.ontology_violations || []).length ? 'bad' : 'ok')}</div>
+      <div class="muted" style="margin-top:10px">${esc(kg.evidence_chain_text || '')}</div>`) }
+  </div>`;
+
+  const ruleRows = rules.map((rule) => `<tr>
+      <td class="mono">${esc(rule.rule_id)}</td>
+      <td>${esc(rule.name)}<div class="muted" style="font-size:12px">${esc(rule.message)}</div>
+        ${rule.evidence ? `<details class="raw"><summary>evidence</summary><pre>${esc(JSON.stringify(rule.evidence, null, 2))}</pre></details>` : ''}</td>
+      <td>${esc(rule.category)}</td><td>${esc(rule.severity)}</td><td>${badge(rule.status)}</td></tr>`);
+
+  const constraintRows = constraints.map((item) => `<tr>
+      <td class="mono">${esc(item.constraint)}</td>
+      <td>${esc(item.statement)}<div class="muted" style="font-size:12px">${esc(item.evidence || '')}</div></td>
+      <td>${badge(item.status)}</td></tr>`);
+
+  const valueRows = values.map((value) => `<tr>
+      <td>${esc(value.display_name || value.name)}<div class="pill">${esc(value.name)}</div></td>
+      <td><strong>${esc(value.display_value)}</strong></td>
+      <td class="mono" style="font-size:11.5px">${esc(value.formula)}</td>
+      <td>${esc(value.definition_kind)} · v${esc(value.definition_version)}</td></tr>`);
+
+  const statements = (kg.statements || []).slice(0, 24).map((line) => `<li>${esc(line)}</li>`).join('');
+  const classRows = Object.entries(kg.class_counts || {}).map(([name, count]) =>
+    `<tr><td class="mono">${esc(name)}</td><td>${esc(count)}</td></tr>`);
+
+  return `${summary}
+    <div class="grid" style="margin-top:14px">
+      ${card('Decision rules', table(['Rule', 'Why', 'Category', 'Severity', 'Result'], ruleRows), `${passed}/${rules.length} passed`)}
+      ${card('Ontology constraints', table(['Constraint', 'Statement', 'Result'], constraintRows), `${satisfied}/${constraints.length} satisfied`)}
+    </div>
+    <div class="grid cols-2" style="margin-top:14px">
+      ${card('Semantic calculations', table(['Definition', 'Value', 'Formula', 'Kind'], valueRows), `${values.length} evaluated`)}
+      ${card('Graph evidence', `<div class="muted" style="margin-bottom:8px">${esc(kg.evidence_chain_text || '')}</div>
+        ${table(['Class', 'Nodes'], classRows)}
+        ${statements ? `<details class="raw"><summary>${(kg.statements || []).length} graph statements</summary><ul>${statements}</ul></details>` : ''}
+        ${state.graph ? raw('Raw graph response', state.graph) : ''}`)}
+    </div>
+    ${raw('Raw decision payload', decision)}`;
+}
+
+/* --------------------------------------------------------------- payments */
+function viewPayments() {
+  const payments = (state.claim && state.claim.payments) || [];
+  const decision = state.claim ? state.claim.decision : null;
+  const defaultKey = `ui-${state.claimId}-payout-1`;
+  const ready = decision && decision.approval_status === 'AUTO_APPROVED';
+  const form = card('Initiate simulated payment', `
+    <div class="row" style="align-items:flex-end">
+      <label class="field">Idempotency key (min 8 chars)
+        <input id="pay-key" value="${esc(defaultKey)}">
+      </label>
+      <label class="field">Named approver
+        <input id="pay-approver" value="officer:j.mensah">
+      </label>
+      <button class="btn-primary" onclick="pay()">Pay claim</button>
+    </div>
+    <div class="notice" style="margin-top:12px">Payments above the human-approval limit need a named
+      approver. Reusing the same key returns the original transaction rather than paying twice.
+      ${ready ? '' : 'The claim needs a current AUTO_APPROVED decision first.'}</div>
+    ${decision ? `<div class="row" style="margin-top:10px"><span class="pill">decision ${esc(decision.decision_id)}</span>
+      ${badge(decision.approval_status)}<span class="pill">payout $${money(decision.net_payout_amount)}</span></div>` : ''}`);
+
+  const rows = payments.map((payment) => `<tr>
+      <td class="mono">${esc(payment.payment_id)}<div class="pill">${esc(payment.method)}</div></td>
+      <td>${badge(payment.status)}</td>
+      <td>$${money(payment.amount)} ${esc(payment.currency)}</td>
+      <td class="mono">${esc(payment.provider_reference)}<div class="pill">${esc(payment.idempotency_key)}</div></td>
+      <td>${esc(payment.approved_by || '—')}<div class="pill">${esc(when(payment.settled_at))}</div></td>
+      <td><button onclick="verify('${esc(payment.payment_id)}')">Verify</button></td></tr>`);
+
+  return `<div class="grid">${form}
+    ${card('Payment transactions', rows.length
+      ? table(['Payment', 'Status', 'Amount', 'Provider', 'Approved by', ''], rows)
+      : '<div class="empty">No payments for this claim yet.</div>')}
+    <div class="notice">Payment simulation only — no funds move. Provider references are synthetic.</div>
+  </div>`;
+}
+
+async function pay() {
+  const key = document.getElementById('pay-key').value.trim();
+  const approver = document.getElementById('pay-approver').value.trim() || null;
+  try {
+    const payment = await api(`/claims/${encodeURIComponent(state.claimId)}/payments`, {
+      method: 'POST',
+      body: JSON.stringify({
+        idempotency_key: key, approver_id: approver, actor: 'officer:claims-intake',
+      }),
+    });
+    toast(`${payment.status} · $${money(payment.amount)} · ${payment.provider_reference}`, 'ok');
+    state.audit = null;
+    await loadClaims(); await loadClaim();
+    await setTab('payments');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+async function verify(paymentId) {
+  try {
+    const result = await api(`/payments/${encodeURIComponent(paymentId)}/verify`, { method: 'POST' });
+    const checks = (result.checks || []).map((check) =>
+      `<div class="row"><span class="pill">${esc(check.check)}</span>${badge(check.passed ? 'PASS' : 'FAIL')}</div>`).join('');
+    toast(`${result.verification_status} · audit chain ${result.audit_chain && result.audit_chain.intact ? 'intact' : 'broken'}`,
+      result.verification_status === 'VERIFIED' ? 'ok' : 'error');
+    document.getElementById('view').insertAdjacentHTML('afterbegin',
+      card('Payment verification', `${checks}${raw('Raw verification', result)}`));
+    state.audit = null;
+    await loadClaim();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+/* ------------------------------------------------------------------ audit */
+function viewAudit() {
+  if (!state.audit) return '<div class="empty">Loading audit trail…</div>';
+  const events = state.audit.events || [];
+  const timeline = events.map((event) => `<div class="event">
+      <div class="when">${esc(when(event.occurred_at))}<div class="pill">${esc(event.event_id)}</div></div>
+      <div>
+        <div class="row"><strong>${esc(event.action)}</strong>${badge(event.actor.split(':')[0])}
+          <span class="pill">${esc(event.actor)}</span></div>
+        <div class="muted" style="font-size:12px">${esc(event.entity_type)} ${esc(event.entity_id)}</div>
+        <div class="pill" style="overflow-wrap:anywhere">hash ${esc(event.event_hash.slice(0, 24))}…</div>
+        <div class="pill" style="overflow-wrap:anywhere">prev ${event.previous_hash ? esc(event.previous_hash.slice(0, 24)) + '…' : 'genesis'}</div>
+        ${raw('payload', event.payload)}
+      </div></div>`).join('');
+  const status = state.audit.intact
+    ? `<span class="badge ok">intact</span>`
+    : `<span class="badge bad">broken at ${esc(state.audit.broken_at)}</span>`;
+  return `<div class="grid">
+    ${card('Hash-chain verification', `<div class="strip">
+      ${metric('Events checked', state.audit.events_checked)}
+      ${metric('Chain', state.audit.intact ? 'INTACT' : 'BROKEN', state.audit.intact ? 'ok' : 'bad')}</div>
+      <div class="row" style="margin-top:10px">${status}
+        <span class="pill">correlation ${esc(state.audit.correlation_id)}</span>
+        <span class="spacer"></span><button onclick="reloadAudit()">Re-check chain</button></div>
+      <div class="muted" style="margin-top:8px">Every event carries the previous event's hash, so an
+      edited or deleted event breaks every later link.</div>`) }
+    ${card('Events', `<div class="timeline">${timeline || '<div class="empty">No audit events.</div>'}</div>`)}
+    ${raw('Raw audit response', state.audit)}
+  </div>`;
+}
+
+async function reloadAudit() {
+  try {
+    state.audit = await api(`/claims/${encodeURIComponent(state.claimId)}/audit`);
+    render();
+  } catch (error) { toast(error.message, 'error'); }
+}
+
+/* --------------------------------------------------------------- ontology */
+function viewOntology() {
+  if (!state.ontology) return '<div class="empty">Loading ontology…</div>';
+  const catalog = state.ontology.catalog;
+  const counts = state.ontology.materialized.counts;
+  const classRows = catalog.classes.map((item) => `<tr>
+      <td class="mono">${esc(item.name)}</td>
+      <td>${esc(item.description)}<div class="pill">${esc((item.parents || []).join(', ') || 'root')}</div></td>
+      <td class="mono" style="font-size:11.5px">${esc(item.iri)}</td></tr>`);
+  const propRows = catalog.properties.map((item) => `<tr>
+      <td class="mono">${esc(item.name)}</td>
+      <td>${esc(item.domain.replace('lio:', ''))} → ${esc(item.range.replace('lio:', ''))}</td>
+      <td>${esc(item.cardinality)}</td><td>${esc(item.description)}</td></tr>`);
+  const constraintRows = catalog.constraints.map((item) => `<tr>
+      <td class="mono">${esc(item.code)}</td><td>${esc(item.statement)}</td><td>${esc(item.consequence)}</td></tr>`);
+  const causeRows = catalog.causes.map((item) => `<tr>
+      <td class="mono">${esc(item.code)}</td><td>${esc(item.description)}</td>
+      <td class="mono">${esc(item.class_iri.replace('lio:', ''))}</td><td>${esc(item.category)}</td></tr>`);
+  const exclusionRows = catalog.exclusions.map((item) => `<tr>
+      <td class="mono">${esc(item.code)}</td><td>${esc(item.name)}</td>
+      <td class="mono">${esc(item.excludes_class.replace('lio:', ''))}</td>
+      <td>${item.contestability_only ? 'contestability window only' : 'always'}</td></tr>`);
+  return `<div class="grid cols-3">
+      ${card('T-Box', `<div class="strip">${metric('Classes', counts.classes)}
+        ${metric('Properties', counts.properties)}${metric('Constraints', catalog.constraints.length)}</div>
+        <div class="muted" style="margin-top:8px">namespace ${esc(catalog.namespace)} · v${esc(catalog.version)}</div>`) }
+      ${card('Cause mapping', `<div class="strip">${metric('ICD-10 codes', catalog.causes.length)}</div>
+        <div class="muted" style="margin-top:8px">Codes resolve to ontology classes by inference, not by if/else.</div>`) }
+      ${card('Exclusions', `<div class="strip">${metric('Products', catalog.exclusions.length)}</div>
+        <div class="muted" style="margin-top:8px">Exclusions apply only to matching classes, some only inside contestability.</div>`) }
+    </div>
+    <div class="grid" style="margin-top:14px">
+      ${card('Classes', table(['Class', 'Meaning', 'IRI'], classRows))}
+      ${card('Object properties', table(['Property', 'Domain → Range', 'Cardinality', 'Meaning'], propRows))}
+      ${card('Constraints', table(['Code', 'Statement', 'Consequence if violated'], constraintRows))}
+      <div class="grid cols-2">
+        ${card('Cause of death map', table(['ICD-10', 'Description', 'Class', 'Category'], causeRows))}
+        ${card('Policy exclusions', table(['Code', 'Name', 'Excludes', 'Scope'], exclusionRows))}
+      </div>
+    </div>
+    ${raw('Raw ontology response', state.ontology)}`;
+}
+
+/* -------------------------------------------------------------- semantics */
+function viewSemantics() {
+  if (!state.definitions) return '<div class="empty">Loading semantic layer…</div>';
+  const rows = state.definitions.map((definition) => `<tr>
+      <td><strong>${esc(definition.display_name)}</strong><div class="pill">${esc(definition.name)}</div></td>
+      <td>${esc(definition.definition_kind)}</td>
+      <td class="mono" style="font-size:11.5px">${esc(definition.formula)}</td>
+      <td>${esc(definition.unit)}</td>
+      <td>${definition.is_certified ? '<span class="badge ok">certified</span>' : '<span class="badge warn">draft</span>'}
+        <div class="pill">v${esc(definition.version)}</div></td></tr>`);
+  const values = state.policySemantics ? state.policySemantics.values : [];
+  const valueRows = values.map((value) => `<tr>
+      <td>${esc(value.display_name)}<div class="pill">${esc(value.name)}</div></td>
+      <td><strong>${esc(value.display_value)}</strong></td>
+      <td>${esc(value.unit)}</td>
+      <td class="mono" style="font-size:11px">${esc(value.formula)}</td>
+      <td>${raw('inputs', value.inputs || {})}</td></tr>`);
+  return `<div class="grid">
+    ${card('Definitions', table(['Definition', 'Kind', 'Formula', 'Unit', 'Governance'], rows), `${state.definitions.length} certified`)}
+    ${state.policySemantics ? card(
+      `Evaluated for ${state.policySemantics.policy_id} (claim ${state.policySemantics.claim_id})`,
+      table(['Definition', 'Value', 'Unit', 'Formula', 'Inputs'], valueRows),
+      `${state.policySemantics.definitions_evaluated} values`) : ''}
+    ${raw('Raw definitions', state.definitions)}
+    ${state.policySemantics ? raw('Raw evaluated values', state.policySemantics) : ''}
+  </div>`;
+}
+
+/* --------------------------------------------------------------- scenario */
+function viewScenario() {
+  const lines = state.scenario.map((entry) => `<div class="scenario-line">
+      <span class="verdict">${badge(entry.status)}</span>
+      <span class="text">${esc(entry.text)}</span>
+      <span class="pill">${esc(entry.ms)} ms</span></div>`).join('');
+  return `<div class="grid">
+    ${card('End-to-end scenario', `<div class="row" style="margin-bottom:10px">
+        <button class="btn-primary" onclick="runScenario()">Run: reset → decide → pay → verify → refuse</button>
+        <span class="spacer"></span><span class="pill">simulated payments only</span></div>
+      <div class="muted">Resets the sample data, decides CLM-2001, pays it, verifies the payment and the
+      audit chain, then decides the restricted CLM-2002 and confirms the payment refusal.</div>
+      <div style="margin-top:12px">${lines || '<div class="empty">Not run yet in this session.</div>'}</div>`) }
+    ${raw('Raw scenario state', state.scenario)}
+  </div>`;
+}
+
+async function runScenario() {
+  state.scenario = [];
+  const log = (status, text, started) => {
+    state.scenario.push({ status, text, ms: Math.round(performance.now() - started) });
+    if (state.tab === 'scenario') render();
+  };
+  const attempt = async (label, action, verify) => {
+    const started = performance.now();
+    try {
+      const result = await action();
+      const verdict = verify ? verify(result) : 'PASS';
+      log(verdict, label, started);
+      return result;
+    } catch (error) {
+      log('FAIL', `${label} — ${error.message}`, started);
+      return null;
+    }
+  };
+
+  await setTab('scenario');
+  try {
+    await attempt('Reset sample data', () => api('/demo/reset', { method: 'POST' }));
+    await loadClaims();
+    state.claimId = 'CLM-2001'; state.claim = null; state.graph = null; state.audit = null;
+    await attempt('Load CLM-2001', () => loadClaim());
+    const decision = await attempt('Decide CLM-2001', () => api('/claims/CLM-2001/decision', {
+      method: 'POST', body: JSON.stringify({ actor: 'officer:j.mensah' }),
+    }), (result) => result.approval_status === 'AUTO_APPROVED' ? 'PASS' : 'FAIL');
+    if (decision) {
+      log(decision.approval_status === 'AUTO_APPROVED' ? 'PASS' : 'FAIL',
+        `Outcome ${decision.approval_status} · $${money(decision.net_payout_amount)} · ` +
+        `${decision.decision_rules_applied.filter((rule) => rule.status === 'PASS').length}/${decision.decision_rules_applied.length} rules · ` +
+        `audit ${decision.audit_reference}`, performance.now());
+    }
+    const body = { idempotency_key: 'ui-claim-CLM-2001-payout-1', approver_id: 'officer:j.mensah' };
+    const payment = await attempt('Pay CLM-2001 (simulated ACH)', () =>
+      api('/claims/CLM-2001/payments', { method: 'POST', body: JSON.stringify(body) }));
+    await attempt('Replay same idempotency key', () =>
+      api('/claims/CLM-2001/payments', { method: 'POST', body: JSON.stringify(body) }),
+      (result) => result.idempotent_replay ? 'PASS' : 'FAIL');
+    if (payment) {
+      await attempt('Verify payment against decision and audit chain', () =>
+        api(`/payments/${payment.payment_id}/verify`, { method: 'POST' }),
+        (result) => result.verification_status === 'VERIFIED' ? 'PASS' : 'FAIL');
+    }
+    await attempt('Verify audit hash chain', () => api('/claims/CLM-2001/audit'),
+      (result) => result.intact ? 'PASS' : 'FAIL');
+    const manual = await attempt('Decide CLM-2002 (court order)', () =>
+      api('/claims/CLM-2002/decision', { method: 'POST', body: '{}' }),
+      (result) => result.approval_status === 'MANUAL_REVIEW' ? 'PASS' : 'FAIL');
+    try {
+      const started = performance.now();
+      await api('/claims/CLM-2002/payments', {
+        method: 'POST', body: JSON.stringify({ idempotency_key: 'ui-claim-CLM-2002-payout-1', approver_id: 'officer:j.mensah' }),
+      });
+      log('FAIL', 'Restricted claim payment should have been refused', started);
+    } catch (error) {
+      log(error.message.includes('409') ? 'PASS' : 'FAIL',
+        `Restricted claim payment refused — ${error.message}`, performance.now());
+    }
+    await loadClaims(); await loadClaim();
+    toast('Scenario complete', 'ok');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+/* --------------------------------------------------------------- lifecycle */
+async function resetData() {
+  if (!confirm('Reset the sample data? This drops every decision, payment and audit event.')) return;
+  try {
+    await api('/demo/reset', { method: 'POST' });
+    state.claim = null; state.graph = null; state.audit = null; state.policySemantics = null;
+    state.scenario = [];
+    await loadClaims(); await loadClaim();
+    await setTab(state.tab);
+    toast('Sample data reset', 'ok');
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

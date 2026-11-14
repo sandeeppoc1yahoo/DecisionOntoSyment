@@ -62,7 +62,7 @@ help:
 	@echo "Schema targets (backend owns the \`auto_ontology\` schema; Prisma owns \`public\`):"
 	@echo "  make migrate             Apply Alembic migrations (alembic upgrade head)"
 	@echo "  make migrate-check       Fail if the schema has drifted from the metadata"
-	@echo "  make migrate-revision m=\"...\"  Autogenerate a revision from auto_ontology/dal/schema.py"
+	@echo "  make migrate-revision m=\"...\"  Autogenerate a revision from auto_ontology/dal/schema.py and pin it in the Helm chart"
 	@echo
 	@echo "Required for publish*: REGISTRY=nvcr.io/<org>/<team>"
 	@echo "Current REGISTRY=$(REGISTRY) TAG=$(TAG)"
@@ -113,6 +113,12 @@ require-registry:
 # --- Schema migrations -------------------------------------------------
 # The backend owns the `auto_ontology` Postgres schema. Prisma owns `public` and migrates
 # separately (frontend/prisma/migrate.sh); the two are independent.
+#
+# `make migrate-revision` also pins the new head in helm/auto-ontology/values.yaml: the
+# backend's wait-for-catalog-schema init container blocks until the database reports that
+# exact revision, so a stale pin leaves every Pod waiting forever. A revision created any
+# other way needs `uv run python -m dev_tools.sync_chart_revision`;
+# auto_ontology/dal/tests/test_migration_revision.py fails if the pin and the head disagree.
 
 migrate:
 	uv run alembic upgrade head
@@ -125,6 +131,7 @@ migrate-check:
 migrate-revision:
 	@test -n "$(m)" || (echo 'usage: make migrate-revision m="what changed"' >&2; exit 2)
 	uv run alembic revision --autogenerate -m "$(m)"
+	uv run python -m dev_tools.sync_chart_revision
 
 .PHONY: migrate migrate-check migrate-revision
 

@@ -441,6 +441,35 @@ requests. Integration requests and bug reports are welcome as issues. Report
 security vulnerabilities through [SECURITY.md](./SECURITY.md). Maintainer
 workflow is in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
+## Life insurance claims decision AI
+
+The repository also carries an executable **claims decision domain** that shows a
+semantic layer, an ontology, a knowledge graph and a deterministic decision
+engine working together. It ingests a life insurance death claim, calculates the
+benefit from certified definitions, classifies the cause of death by inference,
+traverses the insured -> policy -> beneficiary chain, adjudicates 15 rules, and
+settles a **simulated** direct deposit.
+
+The domain lives in `auto_ontology/insurance/` and is opt-in:
+
+```bash
+# Standalone demo and API (SQLite; no NVIDIA key or Postgres needed)
+python -m auto_ontology.insurance.demo          # end-to-end scenario
+python -m auto_ontology.insurance.api           # console: http://127.0.0.1:3100/
+python -m auto_ontology.insurance.bootstrap     # create catalogs + sample data
+
+# Or mount it on the platform API (Postgres)
+INSURANCE_ENABLED=1 uv run python -m auto_ontology.server
+```
+
+Start reading at [QUICKSTART.md](./QUICKSTART.md) to run it and check the data,
+[docs/insurance/README.md](./docs/insurance/README.md) for the architecture,
+five diagrams, layer-by-layer explanations, API samples and the expected
+output, and [docs/insurance/data-model.md](./docs/insurance/data-model.md) for
+the 23 tables and what belongs in each layer.
+
+> Payments are simulated. No financial transaction is executed.
+
 ## Reference
 
 | Topic                                   | Doc                                                  |

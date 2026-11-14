@@ -11,6 +11,15 @@
 # dev_tools/release_helm_chart.py refuses to publish unless values.yaml names
 # exactly <image-registry>/<image>:<app-version>.
 #
+# The chart also pins backend.alembicRevision, the revision the backend's
+# wait-for-catalog-schema init container waits for. Any migration on the
+# release branch must bump it in the same commit, or the release installs a
+# chart whose backend Pods wait on a revision that never arrives.
+# auto_ontology/dal/tests/test_migration_revision.py fails when the pin and the
+# head disagree, and runs in ci-python.yml before a release branch is cut.
+# release_helm_chart.py checks the same thing immediately before packaging, so
+# this workflow refuses to publish a stale pin even if branch checks were skipped.
+#
 # Run it on a release branch: dispatched on release/v1.0 with no versions, it
 # packages that branch as chart 1.0.0 deploying images tagged 1.0.
 # Requires repo secret:

@@ -17,6 +17,15 @@ checks that ``values.yaml`` names exactly ``<image-registry>/<image>:
 <app-version>``, so a release can't ship a chart that installs another build
 or a registry customers can't reach.
 
+It also compares ``backend.alembicRevision`` with the newest migration under
+``alembic/versions``. The backend's ``wait-for-catalog-schema`` init container
+blocks until ``public.alembic_version`` reports that value, so a chart pinned
+behind its own image would install backend Pods that never start. The check
+reads the migration modules rather than asking Alembic: this job installs only
+the ``release`` dependency group, and pulling in the backend's closure to read
+a dozen two-line modules is not worth it. The authoritative check, which does
+ask Alembic, is ``auto_ontology/dal/tests/test_migration_revision.py``.
+
 Usage (from the repo root)::
 
     helm lint helm/auto-ontology
@@ -34,6 +43,7 @@ Run by ``.github/workflows/release-helm.yml``.
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import pathlib
 import shutil
@@ -46,6 +56,8 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 DIST_DIR = REPO_ROOT / "dist"
 # Where the images live once the catalog publishing MR copies them there.
 PUBLISHED_IMAGE_REGISTRY = "nvcr.io/nvidia"
+# The migrations the chart's `backend.alembicRevision` has to match.
+MIGRATIONS_DIR = REPO_ROOT / "alembic" / "versions"
 
 # values.yaml key -> the image release-docker.yml publishes for it.
 CHART_IMAGES = {
@@ -84,6 +96,102 @@ def _check_images(values: dict, registry: str, app_version: str) -> list[str]:
             errors.append(
                 f"{key}.image.tag is {got.get('tag')!r}, expected {app_version!r}"
                 " (quoted)"
+            )
+    return errors
+
+
+def _module_constants(module: ast.Module) -> dict[str, object]:
+    """The top-level names a migration module sets to a literal."""
+    constants: dict[str, object] = {}
+    for node in module.body:
+        if isinstance(node, ast.AnnAssign):
+            if not isinstance(node.target, ast.Name) or node.value is None:
+                continue
+            name, value = node.target.id, node.value
+        elif isinstance(node, ast.Assign):
+            if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+                continue
+            name, value = node.targets[0].id, node.value
+        else:
+            continue
+        try:
+            constants[name] = ast.literal_eval(value)
+        except (ValueError, TypeError):
+            # A computed revision is not something `upgrade` can follow either;
+            # leave it out rather than guess at its value.
+            continue
+    return constants
+
+
+def _parents(value: object) -> list[str] | None:
+    """``down_revision`` as a list of parents, or ``None`` if it is not one."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (tuple, list)) and all(isinstance(v, str) for v in value):
+        return list(value)
+    return None
+
+
+def _migration_heads(
+    versions_dir: pathlib.Path = MIGRATIONS_DIR,
+) -> tuple[set[str], list[str]]:
+    """Head revisions, plus anything that could not be read.
+
+    Parsed from the modules' AST rather than their text so a tuple
+    ``down_revision`` (a merge revision) is read as two parents, the way Alembic
+    reads it. Branch labels are not used in this repository; a migration graph
+    that starts using them would be a reason to move this check to Alembic, not
+    to extend the parser.
+    """
+    revisions: dict[str, list[str]] = {}
+    parents: set[str] = set()
+    problems: list[str] = []
+    for path in sorted(versions_dir.glob("*.py")):
+        try:
+            module = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError as exc:
+            problems.append(f"{path.name}: cannot be parsed ({exc.msg})")
+            continue
+        constants = _module_constants(module)
+        revision = constants.get("revision")
+        if not isinstance(revision, str):
+            problems.append(f"{path.name}: has no literal `revision`")
+            continue
+        if "down_revision" not in constants:
+            problems.append(f"{path.name}: has no `down_revision`")
+            continue
+        down = _parents(constants["down_revision"])
+        if down is None:
+            problems.append(f"{path.name}: `down_revision` is not a revision id")
+            continue
+        revisions[revision] = down
+        parents.update(down)
+    return set(revisions) - parents, problems
+
+
+def _check_alembic_revision(
+    values: dict, versions_dir: pathlib.Path = MIGRATIONS_DIR
+) -> list[str]:
+    """Errors that would leave the chart waiting on a revision that never lands."""
+    pinned = values.get("backend", {}).get("alembicRevision")
+    heads, errors = _migration_heads(versions_dir)
+    if pinned is None:
+        errors.append("backend.alembicRevision is missing from values.yaml")
+    if not heads:
+        errors.append(f"no migrations found under {versions_dir}")
+    elif len(heads) > 1:
+        errors.append(
+            f"the migration graph has {len(heads)} heads, {sorted(heads)}; "
+            "`alembic upgrade head` cannot run until they are merged"
+        )
+    elif pinned is not None:
+        (head,) = heads
+        if pinned != head:
+            errors.append(
+                f"backend.alembicRevision is {pinned!r}, but the newest migration "
+                f"is {head!r}; bump the chart in the same commit as the migration"
             )
     return errors
 
@@ -187,6 +295,7 @@ def main() -> None:
 
     values = yaml.safe_load((chart_dir / "values.yaml").read_text())
     errors = _check_images(values, args.image_registry, args.app_version)
+    errors += _check_alembic_revision(values)
     if errors:
         print("ERROR: values.yaml does not match this release:", file=sys.stderr)
         for error in errors:

@@ -1,0 +1,204 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES.
+# All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Insurance Claims CI
+
+# The claims domain (`auto_ontology/insurance/`) is exercised by the main
+# `ci-python.yml` suite, but that job runs it against in-memory SQLite. Its
+# schema, money/percentage types, JSON payloads, transaction scope and audit
+# hash chain all behave differently enough on Postgres - and Postgres is what a
+# deployment uses - that "passes on SQLite" is not the claim being made.
+# This job makes the Postgres claim and pins the migrations that create it.
+on:
+  push:
+    branches: [main]
+    paths:
+      # The domain itself, plus everything that can change what the job proves:
+      # the migrations that create the tables, the dependency set that provides
+      # Alembic and psycopg, and the app factory the mount point lives in.
+      - 'auto_ontology/insurance/**'
+      - 'auto_ontology/server/__main__.py'
+      - 'alembic/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/ci-insurance.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'auto_ontology/insurance/**'
+      - 'auto_ontology/server/__main__.py'
+      - 'alembic/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/ci-insurance.yml'
+  workflow_dispatch:
+
+jobs:
+  claims_postgres:
+    name: Claims suite + migrations (Postgres)
+    runs-on: ubuntu-latest
+
+    # pgvector, not plain postgres: the platform's baseline migration creates
+    # pg_trgm indexes and the vector store later creates the `vector` extension,
+    # so a stock image would fail on the shared chain in a way that looks like an
+    # insurance bug. Pinned to the same tag as docker-compose.yml.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: insurance
+          POSTGRES_PASSWORD: insurance
+          POSTGRES_DB: insurance_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U insurance -d insurance_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # The platform's own migrations read POSTGRES_*; the claims domain reads
+      # INSURANCE_DB_URL. Both point at the same database, which is the
+      # deployment shape this job is meant to prove.
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      POSTGRES_USER: insurance
+      POSTGRES_PASSWORD: insurance
+      POSTGRES_DATABASE: insurance_ci
+      INSURANCE_DB_URL: postgresql+psycopg://insurance:insurance@localhost:5432/insurance_ci
+      # The test suite resets this database per test (drop + create), so it must
+      # be the disposable CI instance and never a developer's database.
+      INSURANCE_TEST_DB_URL: postgresql+psycopg://insurance:insurance@localhost:5432/insurance_ci
+      # Pinned so a change to a default threshold cannot silently change an
+      # expected outcome in the demo assertion below.
+      INSURANCE_AUTO_APPROVAL_LIMIT: '500000'
+      INSURANCE_PAYMENT_HUMAN_APPROVAL_LIMIT: '100000'
+      INSURANCE_SEED_ON_START: '0'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # This is the step that would have caught the new revision being chained
+      # onto the wrong parent: `alembic upgrade head` fails outright when two
+      # heads exist, instead of quietly leaving a branch nobody applies.
+      - name: Apply migrations
+        run: uv run --no-sync alembic upgrade head
+
+      # Compares a live database against both metadata objects - the platform
+      # catalog and `INSURANCE_METADATA` - so a model edited without a matching
+      # revision fails here rather than as an UndefinedColumn in production.
+      - name: Fail if the schema has drifted from the models
+        run: uv run --no-sync alembic check
+
+      # `alembic check` proves there is no drift; it does not prove the tables
+      # are there (an empty database with an empty model would also pass). This
+      # asserts the exact table set from metadata at the exact head revision.
+      - name: Assert the migration created the claims schema at head
+        run: |
+          uv run --no-sync python - <<'PY'
+          import os
+
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+          from sqlalchemy import create_engine, inspect, text
+
+          from auto_ontology.insurance.schema import INSURANCE_METADATA
+
+          engine = create_engine(os.environ["INSURANCE_DB_URL"])
+          actual = {
+              name
+              for name in inspect(engine).get_table_names()
+              if name.startswith("insurance_")
+          }
+          expected = set(INSURANCE_METADATA.tables)
+          assert actual == expected, {
+              "missing": sorted(expected - actual),
+              "unexpected": sorted(actual - expected),
+          }
+
+          # Fails on multiple heads as well: a second head means one branch is
+          # never applied by `upgrade head`, and the failure above then only shows
+          # up as missing tables. `get_heads()` is the API that exists across
+          # Alembic versions; the count is asserted, not assumed.
+          heads = ScriptDirectory.from_config(Config("alembic.ini")).get_heads()
+          assert len(heads) == 1, f"expected a single head, found {heads}"
+          head = heads[0]
+          with engine.connect() as connection:
+              applied = connection.execute(
+                  text("select version_num from alembic_version")
+              ).scalar_one()
+          assert applied == head, (applied, head)
+          print(f"{len(actual)} claims tables at revision {head}")
+          PY
+
+      # The conftest reads INSURANCE_TEST_DB_URL, so the same 56 tests that run
+      # on SQLite locally run here against Postgres, resetting the schema per
+      # test. This is the dialect check: bigint money, `json` payloads,
+      # timezone-less timestamps and the audit hash chain.
+      - name: Run the claims test suite against Postgres
+        run: uv run --no-sync pytest auto_ontology/insurance/tests -q --durations=5
+
+      # The tests prove the layers individually; the demo proves the story end
+      # to end - approve, pay, verify, and refuse the restricted claim. It
+      # rebuilds the schema from metadata, which is why it runs last.
+      - name: Run the end-to-end claim scenario
+        run: uv run --no-sync python -m auto_ontology.insurance.demo
+
+      - name: Assert the scenario outcome
+        run: |
+          uv run --no-sync python - <<'PY'
+          import json
+          from pathlib import Path
+
+          artifacts = Path("demo_output")
+          decision = json.loads(
+              (artifacts / "decision_auto_approved.json").read_text(encoding="utf-8")
+          )
+          rules = decision["decision_rules_applied"]
+          assert decision["approval_status"] == "AUTO_APPROVED", decision["approval_status"]
+          assert decision["net_payout_amount"] == "250000.00", decision["net_payout_amount"]
+          assert decision["audit_reference"].startswith("AUD-")
+          assert rules and all(rule["status"] == "PASS" for rule in rules), [
+              rule["rule_id"] for rule in rules if rule["status"] != "PASS"
+          ]
+          assert any(
+              rule["rule_id"] == "R04_NO_APPLICABLE_EXCLUSION" for rule in rules
+          ), "the exclusion rule must have been evaluated"
+
+          payment = json.loads(
+              (artifacts / "payment_settled.json").read_text(encoding="utf-8")
+          )
+          assert payment["payment"]["status"] == "SETTLED"
+          assert payment["payment"]["amount"] == "250000.00"
+          assert payment["payment"]["provider_reference"].startswith("SIM-ACH-")
+          assert payment["verification"]["verification_status"] == "VERIFIED"
+          assert payment["audit_chain"]["intact"] is True
+
+          manual = json.loads(
+              (artifacts / "decision_manual_review.json").read_text(encoding="utf-8")
+          )
+          assert manual["approval_status"] == "MANUAL_REVIEW", manual["approval_status"]
+          assert manual["net_payout_amount"] == "0.00"
+
+          print(
+              "scenario verified:",
+              decision["audit_reference"],
+              payment["payment"]["provider_reference"],
+              "| restricted claim:",
+              manual["approval_status"],
+          )
+          PY

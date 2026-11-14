@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -112,6 +113,19 @@ def create_app() -> FastAPI:
         model_interchange_router, prefix="/api", tags=["model-interchange"]
     )
     app.include_router(search_router, prefix="/api", tags=["search"])
+
+    # The life insurance claims domain is opt-in. It is a separate bounded
+    # context with its own storage URL (INSURANCE_DB_URL, Postgres in a
+    # deployment), so a standard ontology deployment must not gain routes that
+    # would fail without its schema. Keeping the mount behind a flag also keeps
+    # the committed OpenAPI spec accurate: the generator builds the app with the
+    # flag unset, exactly as the default deployment runs.
+    if os.environ.get("INSURANCE_ENABLED") == "1":
+        from auto_ontology.insurance.api.router import router as insurance_router
+
+        app.include_router(
+            insurance_router, prefix="/api/insurance", tags=["insurance"]
+        )
 
     return app
 

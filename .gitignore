@@ -94,3 +94,8 @@ helm.sh
 /temp.txt
 /vectors_wiki.py
 /vectors_wiki_load.py
+
+# Life insurance claims demo artifacts
+insurance_demo.db
+insurance_demo.db-journal
+demo_output/

@@ -14,35 +14,64 @@ bug it exists to prevent.
 
 from __future__ import annotations
 
+import functools
 import pathlib
 import re
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 VERSIONS = ROOT / "alembic" / "versions"
 VALUES = ROOT / "helm" / "auto-ontology" / "values.yaml"
 
 
+@functools.lru_cache(maxsize=1)
+def _scripts() -> ScriptDirectory:
+    """Alembic's own view of the migration graph.
+
+    Parsed by Alembic rather than by regex over the version files: only Alembic
+    knows how merge revisions, tuples and branch labels combine, and the value
+    that matters is the one ``upgrade head`` acts on, not one this test can
+    reconstruct from the source text.
+    """
+    config = Config(str(ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(VERSIONS.parent))
+    return ScriptDirectory.from_config(config)
+
+
 def _head_revisions() -> list[str]:
-    """Revisions nothing else lists as its ``down_revision``."""
-    revisions: dict[str, str | None] = {}
-    for path in VERSIONS.glob("*.py"):
-        text = path.read_text()
-        rev = re.search(r'^revision: str = ["\']([^"\']+)["\']', text, re.M)
-        down = re.search(
-            r'^down_revision: [^=]+= (?:["\']([^"\']+)["\']|None)', text, re.M
-        )
-        if rev:
-            revisions[rev.group(1)] = down.group(1) if down else None
-    parents = {d for d in revisions.values() if d}
-    return sorted(set(revisions) - parents)
+    """The revisions Alembic reports as heads."""
+    return list(_scripts().get_heads())
 
 
 def test_there_is_exactly_one_head_migration() -> None:
     """Two heads mean `upgrade head` is ambiguous and the gate cannot be pinned."""
     heads = _head_revisions()
     assert len(heads) == 1, f"expected a single head, found {heads}"
+
+
+def test_every_migration_is_reachable_from_the_head() -> None:
+    """`upgrade head` must walk the whole graph, not just a single head.
+
+    A revision parented onto an older ancestor leaves two heads and
+    ``alembic upgrade head`` refuses to run at all; a disconnected revision can
+    also leave tables missing while the head still looks unique. Walking
+    base -> head and comparing against every known revision catches both, so a
+    migration that exists on disk but would never be applied fails here rather
+    than as missing columns after a deploy.
+    """
+    scripts = _scripts()
+    heads = scripts.get_heads()
+    assert len(heads) == 1, f"expected a single head, found {heads}"
+    on_path = {
+        revision.revision for revision in scripts.iterate_revisions(heads[0], "base")
+    }
+    every = {revision.revision for revision in scripts.walk_revisions()}
+    assert on_path == every, (
+        f"revisions unreachable from head {heads[0]}: {sorted(every - on_path)}"
+    )
 
 
 @pytest.mark.skipif(not VALUES.exists(), reason="helm chart not present")

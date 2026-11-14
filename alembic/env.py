@@ -28,6 +28,7 @@ from sqlalchemy import engine_from_config, pool
 from auto_ontology.dal.schema import METADATA
 from auto_ontology.dal.session import sqlalchemy_url
 from auto_ontology.env import load_env
+from auto_ontology.insurance.schema import INSURANCE_METADATA
 
 load_env()
 
@@ -43,7 +44,11 @@ if config.config_file_name is not None:
 
 logger = logging.getLogger(__name__)
 
-target_metadata = METADATA
+# Both catalogs share the default schema and one migration history. The
+# insurance tables are a bounded context, not part of the semantic catalog, but
+# they live in the same database — so autogenerate and `alembic check` must see
+# both, or the claims tables would read as drift and be proposed for deletion.
+target_metadata = [METADATA, INSURANCE_METADATA]
 
 #: Sentinel for "this object did not carry a schema at all", distinct from the
 #: schema *being* None (which means the default schema, i.e. ours).

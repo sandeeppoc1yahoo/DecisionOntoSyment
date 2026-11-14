@@ -36,12 +36,22 @@ See the `Makefile` (`make help`) for build and migration targets, and
 
 1. Create your branch from `main`.
 2. Add tests for new functionality and make sure the full test suite passes.
-3. Keep pull requests focused — one logical change per PR.
-4. Pull requests targeting `main` require **an approving review from a code
+3. **Adding a migration?** Bump `backend.alembicRevision` in
+   [`helm/auto-ontology/values.yaml`](./helm/auto-ontology/values.yaml) to the
+   new head in the same commit. `make migrate-revision` does this for you; if
+   you ran `alembic revision` directly, run
+   `uv run python -m dev_tools.sync_chart_revision`. The chart's
+   `wait-for-catalog-schema` init
+   container blocks until the database reports that exact revision, so a stale
+   pin leaves every backend Pod waiting. `auto_ontology/dal/tests/test_migration_revision.py`
+   fails if the pin and the head disagree, or if the migration graph has more
+   than one head.
+4. Keep pull requests focused — one logical change per PR.
+5. Pull requests targeting `main` require **an approving review from a code
    owner** before they can be merged. Code owners (see `.github/CODEOWNERS`)
    are automatically requested for review. Because a code owner cannot
    approve their own pull request, one of the other owners must review it.
-5. New files carry the NVIDIA copyright and SPDX license header used across
+6. New files carry the NVIDIA copyright and SPDX license header used across
    the repository.
 
 ## License
